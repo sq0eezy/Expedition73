@@ -25,6 +25,8 @@ Open [the local demo](http://127.0.0.1:8873/) and stop the server with Ctrl+C wh
 
 ## Interpret the results
 
+In **Compare → Trends**, choose a question under **Try an investigation** to select the indicator and compare both regions. The summary interprets the fitted directions and the approximate 95% intervals. Open **View annual time series** for the chart, **View annual values** for the CSV, and **Method and limitations** for the source assumptions and statistical method.
+
 In **Compare → Trends**, open **View annual values** to inspect the 24 annual means used to fit each selected region's slope. The CSV download includes the same regions, with units in the column headings and values at calculation precision. Its values describe the whole, unmasked study windows.
 
 The candidate trends use 24 complete calendar years per unmasked rectangle. Calendar-day weighting converts monthly values to annual means in °C for temperature and mm/day for precipitation rate. Approximate 95% intervals use Newey–West standard errors with two annual lags and a small-sample adjustment. The paired temperature contrast fits the annual A−B series. Precipitation slopes are evaluated separately because Northern Alaska falls above the latitude limit for MERRA-2's observation-based correction over land. The results are sensitive to the model and period. The intervals address uncertainty under the fitted model. [Temperature verification tests](web/tests/comparison.test.mjs) · [NASA MERRA-2 precipitation correction](https://gmao.gsfc.nasa.gov/pubs/docs/Bosilovich803.pdf)

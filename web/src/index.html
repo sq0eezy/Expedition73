@@ -112,6 +112,17 @@
             <p id="trend-status" class="detail-note" role="status"></p>
             <div id="trend-results"></div>
             <p id="trend-coverage" class="detail-note" hidden>MERRA-2 uses model precipitation over Northern Alaska's land. Correction coverage differs between regions.</p>
+            <div class="trend-investigation">
+              <label class="trend-picker" for="trend-question">Try an investigation
+                <select id="trend-question">
+                  <option value="">Choose a question</option>
+                  <option value="temperature">Did the two regions warm at different rates?</option>
+                  <option value="precipitation">Did precipitation change in the same direction?</option>
+                </select>
+              </label>
+              <p id="trend-finding" class="detail-note" role="status"></p>
+              <p id="trend-evidence" class="detail-note" hidden></p>
+            </div>
             <div class="pair-actions">
               <details id="trend-series" hidden><summary>View annual time series</summary><div id="trend-legend" class="legend"></div><svg id="trend-chart" viewBox="0 0 640 220" role="img" aria-label="Annual values by region"></svg></details>
               <details id="trend-table-panel" hidden>
