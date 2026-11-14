@@ -52,6 +52,11 @@
   <div class="context-filter" data-screens="weight-workflow" hidden><div class="spatial-control"><label for="trace-region">Workflow region</label><select id="trace-region"></select></div></div>
   <div class="context-filter" data-screens="indicator-workflow" hidden id="indicator-workflow-filters"><label for="indicator-trace-region">Workflow region</label><select id="indicator-trace-region"></select></div>
   <div class="filter-actions"><button id="download" type="button">Download selected data as JSON <span aria-hidden="true">↓</span></button></div>
+  <div class="filter-actions share-actions" data-screens="monthly">
+    <button id="share-comparison" type="button">Copy comparison link</button>
+    <p id="share-comparison-status" role="status"></p>
+    <input id="share-comparison-url" type="url" aria-label="Comparison link" readonly hidden>
+  </div>
 </aside>
     <main id="main" tabindex="-1">
       <div class="view-bar">

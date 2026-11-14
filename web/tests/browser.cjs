@@ -40,6 +40,58 @@ const format = (v) => v.toLocaleString('en-US', { minimumFractionDigits: 2, maxi
     const bundle = await (await page.request.get(new URL('data/results.json', base).href)).json();
     const data = bundle.schema_version === '0.4.0' ? JSON.parse(bundle.snapshots.find((s) => s.year === bundle.default_year).data_json) : bundle;
     assert.equal(data.regions.length, 2);
+    const shareContext = await browser.newContext({
+      permissions: ['clipboard-read', 'clipboard-write'], viewport: { width: 390, height: 844 },
+    });
+    try {
+      const shared = await shareContext.newPage();
+      shared.on('pageerror', (error) => errors.push(error.message));
+      const shareBase = new URL(base);
+      shareBase.searchParams.set('refresh', '1234');
+      await shared.goto(shareBase.href);
+      await shared.locator('#toggle-filters').click();
+      await shared.locator('#year').selectOption('2023');
+      await shared.locator('#month').press('End');
+      await shared.locator('#policy').selectOption('land');
+      await shared.locator('#pair-swap').click();
+      await shared.locator('#share-comparison').click();
+      await shared.getByText('Comparison link copied.', { exact: true }).waitFor();
+      const copied = new URL(await shared.evaluate(() => navigator.clipboard.readText()));
+      assert.equal(copied.pathname, shareBase.pathname);
+      assert.equal(copied.searchParams.has('refresh'), false);
+      await shared.goto(copied.href);
+      await shared.locator('#toggle-filters').click();
+      for (const [id, value] of Object.entries({ year: '2023', month: '11', policy: 'land', 'pair-left': 'B', 'pair-right': 'A' })) {
+        assert.equal(await shared.locator(`#${id}`).inputValue(), value);
+      }
+      assert.deepEqual(await shared.locator('#region-options input:checked').evaluateAll((inputs) => inputs.map((input) => input.value)), ['A', 'B']);
+      checks++;
+
+      await shared.addInitScript(() => Object.defineProperty(navigator, 'clipboard', {
+        value: { writeText: () => Promise.reject(new Error('Clipboard denied for the test')) },
+      }));
+      copied.searchParams.set('surface', 'invalid');
+      await shared.goto(copied.href);
+      await shared.locator('#toggle-filters').click();
+      assert.equal(await shared.locator('#year').inputValue(), String(bundle.default_year));
+      assert.equal(await shared.locator('#policy').inputValue(), 'unmasked');
+      assert.match(await shared.locator('#share-comparison-status').innerText(), /Showing the default selection/);
+      await shared.locator('#region-options input[value="A"]').uncheck();
+      await shared.locator('#share-comparison').click();
+      const fallback = shared.locator('#share-comparison-url');
+      await fallback.waitFor({ state: 'visible' });
+      const singleRegionLink = new URL(await fallback.inputValue());
+      assert.deepEqual(singleRegionLink.searchParams.getAll('region'), ['B']);
+      assert.equal(singleRegionLink.searchParams.has('left'), false);
+      await shared.goto(singleRegionLink.href);
+      await shared.locator('#toggle-filters').click();
+      assert.deepEqual(await shared.locator('#region-options input:checked').evaluateAll((inputs) => inputs.map((input) => input.value)), ['B']);
+      await shared.locator('#region-options input[value="B"]').uncheck();
+      assert.equal(await shared.locator('#share-comparison').isDisabled(), true);
+      checks++;
+    } finally {
+      await shareContext.close();
+    }
     const checkMetrics = async (policy, month, snapshot = data) => {
       const actual = await page.locator('#metrics .metric > strong').allTextContents();
       const left = await page.locator('#pair-left').inputValue(), right = await page.locator('#pair-right').inputValue();
