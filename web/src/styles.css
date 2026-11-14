@@ -434,15 +434,25 @@ body[data-screen=trend] .controls > :is(.policy-control, .shared-month), body[da
 .trend-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
 .trend-picker { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; }
 .trend-picker select { max-width: 100%; padding: 3px 6px; }
-.trend-investigation { border-top: 1px solid var(--line); margin-top: 8px; padding-top: 8px; }
-.trend-investigation select { min-width: 0; }
-.trend-investigation p { margin: 5px 0 0; }
-.trend-investigation p:empty { margin: 0; }
+.trend-investigation { padding: 12px; margin-bottom: 12px; background: #eff6f5; border: 1px solid #b8d4cf; border-radius: 8px; }
+.trend-panel #trend-investigation-heading { font-size: clamp(18px, 2.3vw, 26px); margin: 0 0 8px; }
+.trend-questions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.trend-questions button {
+  min-height: 44px; padding: 7px 10px; text-align: left; background: white; border: 1px solid #9ebcb6;
+  border-radius: 6px; font-size: clamp(13px, 1.4vw, 17px); font-weight: 650; line-height: 1.3;
+}
+.trend-questions button:hover { border-color: #247c78; }
+.trend-questions button[aria-pressed=true] { color: white; background: #185b57; border-color: #185b57; }
+#trend-finding { font-size: clamp(15px, 1.7vw, 21px); font-weight: 650; line-height: 1.35; margin: 9px 0 0; }
+#trend-finding:empty { margin: 0; }
+#trend-evidence { font-size: 13px; margin: 4px 0 0; color: #3b565d; }
 #trend-chart { display: block; width: min(100%, 720px); height: auto; }
-#trend-results { display: grid; gap: 6px; }
-.trend-row { padding: 5px 9px; background: #f3f7fa; border: 1px solid var(--line); border-radius: 5px; }
+#trend-results { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.trend-row:only-child, .trend-row[data-trend=difference] { grid-column: 1 / -1; }
+.trend-row { padding: 8px 10px; background: #f3f7fa; border: 1px solid var(--line); border-radius: 5px; }
 .trend-row h3, .trend-row p { margin: 3px 0; }
-.trend-values { display: flex; flex-wrap: wrap; column-gap: 14px; align-items: baseline; font-size: 12px; }
+.trend-values { display: flex; flex-wrap: wrap; column-gap: 14px; align-items: baseline; font-size: 13px; }
+.trend-values strong { font-size: clamp(16px, 2vw, 23px); }
 .trend-track { position: relative; margin: 4px 5px; height: 12px; border-radius: 4px; background: #e4edf2; }
 .trend-track::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; border-left: 1px dashed #627a89; }
 .trend-interval, .trend-point { position: absolute; top: 50%; background: #235e75; transform: translateY(-50%); }
@@ -450,12 +460,20 @@ body[data-screen=trend] .controls > :is(.policy-control, .shared-month), body[da
 .trend-point { width: 8px; height: 8px; border-radius: 50%; transform: translate(-50%, -50%); }
 @media (max-width: 560px) {
   .trend-panel { line-height: 1.25; }
-  .trend-controls { gap: 3px 8px; }
-  .trend-picker { font-size: 11px; gap: 4px; }
-  .trend-picker select { padding: 2px 4px; }
+  .trend-panel .panel-heading > div > .section-label { display: none; }
+  .trend-controls { gap: 3px 6px; }
+  .trend-panel .trend-picker > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .trend-panel .panel-heading .trend-picker select { max-width: 118px; padding: 2px 4px; font-size: 11px; }
+  #trend-description, #trend-status { margin: 2px 0; }
+  .trend-panel:has(#trend-evidence:not([hidden])) #trend-description { display: none; }
+  .trend-investigation { padding: 6px; margin-bottom: 5px; }
+  .trend-questions { gap: 5px; }
+  .trend-questions button { padding: 4px 6px; }
+  #trend-evidence { font-size: 12px; }
   #trend-results { gap: 4px; }
   .trend-row { padding: 3px 7px; }
   .trend-row h3 { font-size: 13px; margin: 1px 0; }
+  .trend-row .trend-values { font-size: 12px; column-gap: 8px; }
   .trend-row p, .trend-row .detail-note { margin: 1px 0; }
   .trend-track { height: 9px; margin-block: 2px; }
 }
