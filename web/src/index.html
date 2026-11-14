@@ -52,6 +52,11 @@
   <div class="context-filter" data-screens="weight-workflow" hidden><div class="spatial-control"><label for="trace-region">Workflow region</label><select id="trace-region"></select></div></div>
   <div class="context-filter" data-screens="indicator-workflow" hidden id="indicator-workflow-filters"><label for="indicator-trace-region">Workflow region</label><select id="indicator-trace-region"></select></div>
   <div class="filter-actions"><button id="download" type="button">Download selected data as JSON <span aria-hidden="true">↓</span></button></div>
+  <div class="filter-actions share-actions" data-screens="monthly">
+    <button id="share-comparison" type="button">Copy comparison link</button>
+    <p id="share-comparison-status" role="status"></p>
+    <input id="share-comparison-url" type="url" aria-label="Comparison link" readonly hidden>
+  </div>
 </aside>
     <main id="main" tabindex="-1">
       <div class="view-bar">
@@ -115,6 +120,17 @@
             <p id="trend-status" class="detail-note" role="status"></p>
             <div id="trend-results"></div>
             <p id="trend-coverage" class="detail-note" hidden>MERRA-2 uses model precipitation over Northern Alaska's land. Correction coverage differs between regions.</p>
+            <div class="trend-investigation">
+              <label class="trend-picker" for="trend-question">Try an investigation
+                <select id="trend-question">
+                  <option value="">Choose a question</option>
+                  <option value="temperature">Did the two regions warm at different rates?</option>
+                  <option value="precipitation">Did precipitation change in the same direction?</option>
+                </select>
+              </label>
+              <p id="trend-finding" class="detail-note" role="status"></p>
+              <p id="trend-evidence" class="detail-note" hidden></p>
+            </div>
             <div class="pair-actions">
               <details id="trend-series" hidden><summary>View annual time series</summary><div id="trend-legend" class="legend"></div><svg id="trend-chart" viewBox="0 0 640 220" role="img" aria-label="Annual values by region"></svg></details>
               <details id="trend-table-panel" hidden>

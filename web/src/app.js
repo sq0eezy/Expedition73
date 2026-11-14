@@ -458,6 +458,7 @@ function renderTrendTable(entries, unit, indicator, anomaly = false) {
 
 function renderTrend(regions) {
   const status = $("trend-status"), panel = $("trend-results");
+  const question = $("trend-question").value;
   const indicator = $("trend-indicator").value;
   const precipitation = indicator === "precipitation";
   $("trend-mode-picker").hidden = precipitation;
@@ -473,6 +474,8 @@ function renderTrend(regions) {
   $("trend-coverage-method").hidden = !precipitation;
   $("trend-series").hidden = true;
   panel.replaceChildren();
+  $("trend-finding").textContent = question ? "This investigation needs verified records for both regions." : "";
+  $("trend-evidence").hidden = true;
   if (!regions.length) {
     renderTrendTable([]);
     status.textContent = "Select at least one region.";
@@ -498,6 +501,7 @@ function renderTrend(regions) {
   }
   renderTrendSeries(entries, unit, anomaly);
   renderTrendTable(entries, unit, indicator, anomaly);
+  if (question) renderTrendInvestigation(precipitation, fits.regions.map((entry, i) => ({ ...entry, region: regions[i] })), fits.difference, unit);
   const bound = Math.max(.1, ...rows.flatMap(({ result }) => result
     ? [Math.abs(result.slope), ...(result.interval ?? []).map(Math.abs)] : []));
   const position = (value) => `${50 + 50 * value / bound}%`;
@@ -536,8 +540,51 @@ function renderTrend(regions) {
     panel.append(card);
   }
 }
-$("trend-indicator").addEventListener("change", () => { if (state.data) renderTrend(active()); });
+function renderTrendInvestigation(precipitation, entries, difference, unit) {
+  const finding = $("trend-finding"), evidence = $("trend-evidence");
+  const [left, right] = entries.map(({ result }) => result);
+  if (!left || !right || entries.length !== 2) return;
+
+  const excludesZero = ([low, high]) => low > 0 || high < 0;
+  if (precipitation) {
+    const signs = [left, right].map(({ slope }) => Math.sign(slope));
+    const direction = signs.includes(0) ? "At least one fitted slope is zero."
+      : signs[0] === signs[1] ? "The fitted slopes point in the same direction."
+        : "The fitted slopes point in opposite directions.";
+    const intervals = [left.interval, right.interval].filter(Boolean);
+    const assessment = intervals.length < 2 ? " A 95% interval is unavailable for at least one region."
+      : intervals.every(excludesZero) ? " Both regional 95% intervals exclude zero."
+        : intervals.some(excludesZero) ? " One regional 95% interval includes zero."
+          : " Both regional 95% intervals include zero.";
+    finding.textContent = direction + assessment;
+  } else {
+    finding.textContent = !difference?.interval ? "A 95% interval for the difference in rates is unavailable."
+      : excludesZero(difference.interval)
+        ? `The paired 95% interval excludes zero. ${named(entries[difference.slope > 0 ? 0 : 1].region)} has the higher fitted temperature trend.`
+        : "The paired 95% interval includes zero. The data leave it unclear whether temperatures changed at different rates.";
+  }
+  evidence.textContent = `NASA POWER / MERRA-2 · 2001–2024 · ${left.years} annual means per region · slopes in ${unit}/decade`;
+  evidence.hidden = false;
+}
+
+$("trend-indicator").addEventListener("change", () => {
+  $("trend-question").value = "";
+  if (state.data) renderTrend(active());
+});
 $("trend-mode").addEventListener("change", () => { if (state.data) renderTrend(active()); });
+$("trend-question").addEventListener("change", () => {
+  const question = $("trend-question").value;
+  if (question) {
+    $("trend-indicator").value = question;
+    for (const region of $("region-options").querySelectorAll("input")) {
+      region.checked = true;
+      state.selected.add(region.value);
+    }
+    render();
+  } else {
+    renderTrend(active());
+  }
+});
 
 function showAnnualRegion() {
   for (const card of $("annual-cards").children) {
@@ -1205,6 +1252,8 @@ function render() {
   $("month-label").textContent = months[state.month]; $("month").setAttribute("aria-valuetext", `${months[state.month]} ${state.data.dates[0].slice(0, 4)}`);
   renderPair(regions); renderTrace(regions); renderMetrics(regions); renderChart(regions); renderHistory(regions); renderAnnual(regions); renderComparison(regions); renderSpatial(regions); renderSupport(regions); renderSources(regions); renderTable(regions);
   $("download").disabled = !regions.length;
+  $("share-comparison").disabled = !regions.length;
+  clearComparisonLink();
   renderIndicators(regions);
   syncScreen();
 }
@@ -1232,12 +1281,28 @@ async function readPeriods(bytes) {
   return { periods, defaultYear };
 }
 
-function mountYear(year, reset = false) {
+function readComparisonLink(params, periods) {
+  const year = Number(params.get("year")), month = Number(params.get("month"));
+  const policy = params.get("surface"), selected = new Set(params.getAll("region"));
+  const pairLeft = params.get("left"), pairRight = params.get("right");
+  const data = periods.get(year)?.data;
+  if (!data || !Number.isInteger(month) || month < 1 || month > data.dates.length
+    || !Object.hasOwn(labels, policy) || !selected.size
+    || [...selected].some((id) => !data.regions.some((region) => region.id === id))) return null;
+  if (selected.size > 1 && (!selected.has(pairLeft) || !selected.has(pairRight) || pairLeft === pairRight)) return null;
+  return { year, month: month - 1, policy, selected, pairLeft, pairRight };
+}
+
+function mountYear(year, reset = false, sharedSelection = null) {
   const snapshot = state.periods.get(year), data = snapshot.data;
   state.reviewRequest++; state.year = year; state.data = data; state.datasetSha256 = snapshot.digest;
   state.selected = new Set(data.regions.filter((r) => reset || state.selected.has(r.id)).map((r) => r.id));
   $("year").value = String(year);
-  if (reset) { state.month = 0; state.policy = "unmasked"; state.spatialRegion = null; state.cell = 0; state.traceRegion = null; state.traceNode = null; state.pairLeft = null; state.pairRight = null; } $("policy").value = state.policy; $("month").value = String(state.month);
+  if (reset) {
+    Object.assign(state, { month: 0, policy: "unmasked", spatialRegion: null, cell: 0,
+      traceRegion: null, traceNode: null, pairLeft: null, pairRight: null }, sharedSelection);
+  }
+  $("policy").value = state.policy; $("month").value = String(state.month);
   $("region-options").replaceChildren(...data.regions.map((region) => {
     const label = el("label", undefined, "region-option"), checkbox = el("input"); checkbox.type = "checkbox"; checkbox.checked = state.selected.has(region.id); checkbox.value = region.id; checkbox.setAttribute("aria-label", `${region.id} · ${named(region)}`);
     checkbox.addEventListener("change", () => { if (checkbox.checked) state.selected.add(region.id); else state.selected.delete(region.id); render(); });
@@ -1259,7 +1324,11 @@ async function load() {
     const years = [...state.periods.keys()];
     $("recorded-coverage").textContent = `Recorded period: ${years[0]}–${years.at(-1)} · ${years.length} years · ${years.length * 12} monthly records per region. The Selected year and Full record tabs show the corresponding monthly values.`;
     $("year").replaceChildren(...[...state.periods.keys()].map((year) => { const option = el("option", String(year)); option.value = String(year); return option; }));
-    mountYear(catalog.defaultYear, true); $("results").hidden = false;
+    const params = new URLSearchParams(location.search);
+    const shared = params.get("compare") === "1";
+    const selection = shared ? readComparisonLink(params, state.periods) : null;
+    mountYear(selection?.year ?? catalog.defaultYear, true, selection); $("results").hidden = false;
+    if (shared && !selection) $("share-comparison-status").textContent = "This comparison link is unavailable. Showing the default selection.";
     void loadAnnual(bytes,state.periods,annualRequest);
     void loadIndicators(bytes,annualRequest);
   } catch { $("error").hidden = false; }
@@ -1284,7 +1353,7 @@ $("history-month").addEventListener("input", () => {
   const year = Number(date.slice(0, 4)); if (year !== state.year) mountYear(year); else render();
 });
 $("trace-region").addEventListener("change", () => { state.traceRegion = $("trace-region").value; state.traceNode = null; renderTrace(active()); });
-const refreshPair = () => { const regions = active(); renderPair(regions); renderMetrics(regions); };
+const refreshPair = () => { const regions = active(); renderPair(regions); renderMetrics(regions); clearComparisonLink(); };
 $("pair-left").addEventListener("change", () => { state.pairLeft = $("pair-left").value; refreshPair(); });
 $("pair-right").addEventListener("change", () => { state.pairRight = $("pair-right").value; refreshPair(); });
 $("pair-swap").addEventListener("click", () => { [state.pairLeft, state.pairRight] = [state.pairRight, state.pairLeft]; refreshPair(); });
@@ -1328,6 +1397,35 @@ $("review-file").addEventListener("change", async () => {
     $("policy").value = state.policy; $("month").value = String(state.month); render();
     $("review-message").textContent = "The report matched the dataset. Results were recomputed and verified, and the saved selection was restored.";
   } catch { if (request !== state.reviewRequest) return; $("review-message").textContent = "The report could not be verified. Check the dataset, report contents and file format."; }
+});
+
+function clearComparisonLink() {
+  $("share-comparison-status").textContent = "";
+  $("share-comparison-url").value = "";
+  $("share-comparison-url").hidden = true;
+}
+
+$("share-comparison").addEventListener("click", async () => {
+  const link = new URL(location.pathname, location.origin);
+  link.search = new URLSearchParams({ compare: "1", year: state.year, month: state.month + 1, surface: state.policy });
+  for (const { id } of active()) link.searchParams.append("region", id);
+  if (state.pairRight !== null) {
+    link.searchParams.set("left", state.pairLeft);
+    link.searchParams.set("right", state.pairRight);
+  }
+
+  clearComparisonLink();
+  const field = $("share-comparison-url");
+  field.value = link.href;
+  try {
+    await navigator.clipboard.writeText(link.href);
+    if (field.value === link.href) $("share-comparison-status").textContent = "Comparison link copied.";
+  } catch {
+    if (field.value !== link.href) return;
+    $("share-comparison-status").textContent = "Copy the link below.";
+    field.hidden = false;
+    field.select();
+  }
 });
 $("download").addEventListener("click", () => {
   const regions = active().map((region) => ({ ...region, display_name: named(region),

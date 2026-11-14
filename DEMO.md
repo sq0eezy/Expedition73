@@ -18,12 +18,16 @@ Open [the local demo](http://127.0.0.1:8873/) and stop the server with Ctrl+C wh
 
 ## Walk through the results
 
+In **Compare → Selected year**, use **Copy comparison link** in the filters to share the current year, month, regions, surface weighting and subtraction order. On a phone, open **Filters** first. The recipient opens the same selection using the data published at that address.
+
 1. Open **Compare → Trends** with both regions selected. For **2 m air temperature**, the fitted slopes are **+0.29 °C per decade** for the Colorado area (approximate 95% CI **−0.07 to +0.65**) and **+0.41 °C per decade** for Northern Alaska (**−0.17 to +0.98**). The paired A−B difference is **−0.12 °C per decade** (**−0.75 to +0.51**). **Series** defaults to **Annual values**; switch **Series** to **Temperature anomalies** to plot both regions in °C on a shared vertical scale with a zero reference line (**Relative to each region’s 2001–2010 mean**). Select **Precipitation rate** to see the Colorado area slope of **−0.030 (mm/day) per decade** (**−0.144 to +0.084**) and Northern Alaska slope of **+0.093 (mm/day) per decade** (**−0.016 to +0.202**). Every interval includes zero. **View annual time series** shows the recorded annual values or temperature anomalies and fitted lines.
 2. Open **Compare → Selected year**, select **July 2024**, and keep **Whole region · unmasked** selected. The regional means are **26.523 °C** and **9.697 °C**. The displayed difference is **16.825 °C**, calculated before rounding. **Full record** shows all 288 months per region.
 3. Open **Indicators → Seasonal profile** for the joint seasonal view. June through August were the three warmest months in both candidate regions in 2024. Their day-weighted precipitation rates were **1.02 mm/day** in the Colorado area and **3.30 mm/day** in Northern Alaska. **Precipitation record** explains the high-latitude coverage caveat.
 4. Open **Indicators → Weather globe** to locate the study windows, or **Indicators → Workflow & export** to inspect the recorded 2024 workflow and download the indicator data. **Data and methods** provides the temperature source and weighting details.
 
 ## Interpret the results
+
+In **Compare → Trends**, choose a question under **Try an investigation** to select the indicator and compare both regions. The summary interprets the fitted directions and the approximate 95% intervals. Open **View annual time series** for the chart, **View annual values** for the CSV, and **Method and limitations** for the source assumptions and statistical method.
 
 In **Compare → Trends**, open **View annual values** to inspect the 24 annual means used to fit each selected region's slope. The CSV download includes the same regions, with units in the column headings and values at calculation precision. Its values describe the whole, unmasked study windows.
 

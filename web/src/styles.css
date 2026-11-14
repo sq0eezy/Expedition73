@@ -416,6 +416,10 @@ body { height: 100dvh; display: grid; grid-template-rows: auto minmax(0, 1fr); }
   border: 1px solid #b8cbd9; background: white; border-radius: 5px; padding: 5px 8px; font-size: 12px;
 }
 .filter-actions button { width: 100%; text-align: left; }
+.share-actions { margin-top: 8px; }
+.share-actions p { margin: 0; font-size: 12px; }
+.share-actions p:not(:empty) { margin-top: 6px; }
+.share-actions input { width: 100%; margin-top: 6px; }
 #toggle-filters, #close-filters, #open-cell-details, .sidebar .chart-choice, .sidebar .annual-choice { display: none; }
 .layout main { display: grid; grid-template-rows: auto minmax(0, 1fr); min-height: 0; padding: 0; }
 .view-bar { display: flex; align-items: center; justify-content: space-between; min-width: 0; gap: 8px; padding: 8px 14px; background: white; border-bottom: 1px solid var(--line); }
@@ -430,6 +434,10 @@ body[data-screen=trend] .controls > :is(.policy-control, .shared-month), body[da
 .trend-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
 .trend-picker { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; }
 .trend-picker select { max-width: 100%; padding: 3px 6px; }
+.trend-investigation { border-top: 1px solid var(--line); margin-top: 8px; padding-top: 8px; }
+.trend-investigation select { min-width: 0; }
+.trend-investigation p { margin: 5px 0 0; }
+.trend-investigation p:empty { margin: 0; }
 #trend-chart { display: block; width: min(100%, 720px); height: auto; }
 #trend-results { display: grid; gap: 6px; }
 .trend-row { padding: 5px 9px; background: #f3f7fa; border: 1px solid var(--line); border-radius: 5px; }
