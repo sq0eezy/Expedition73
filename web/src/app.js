@@ -436,6 +436,7 @@ function renderTrendTable(entries, unit, indicator) {
 
 function renderTrend(regions) {
   const status = $("trend-status"), panel = $("trend-results");
+  const question = $("trend-question").value;
   const indicator = $("trend-indicator").value;
   const precipitation = indicator === "precipitation";
   const unit = precipitation ? "mm/day" : "°C";
@@ -447,6 +448,8 @@ function renderTrend(regions) {
   $("trend-coverage-method").hidden = !precipitation;
   $("trend-series").hidden = true;
   panel.replaceChildren();
+  $("trend-finding").textContent = question ? "This investigation needs verified records for both regions." : "";
+  $("trend-evidence").hidden = true;
   if (!regions.length) {
     renderTrendTable([]);
     status.textContent = "Select at least one region.";
@@ -471,6 +474,7 @@ function renderTrend(regions) {
   }
   renderTrendSeries(entries, unit);
   renderTrendTable(entries, unit, indicator);
+  if (question) renderTrendInvestigation(precipitation, entries, fits.difference, unit);
   const bound = Math.max(.1, ...rows.flatMap(({ result }) => result
     ? [Math.abs(result.slope), ...(result.interval ?? []).map(Math.abs)] : []));
   const position = (value) => `${50 + 50 * value / bound}%`;
@@ -504,7 +508,51 @@ function renderTrend(regions) {
     panel.append(card);
   }
 }
-$("trend-indicator").addEventListener("change", () => { if (state.data) renderTrend(active()); });
+
+function renderTrendInvestigation(precipitation, entries, difference, unit) {
+  const finding = $("trend-finding"), evidence = $("trend-evidence");
+  const [left, right] = entries.map(({ result }) => result);
+  if (!left || !right || entries.length !== 2) return;
+
+  const excludesZero = ([low, high]) => low > 0 || high < 0;
+  if (precipitation) {
+    const signs = [left, right].map(({ slope }) => Math.sign(slope));
+    const direction = signs.includes(0) ? "At least one fitted slope is zero."
+      : signs[0] === signs[1] ? "The fitted slopes point in the same direction."
+        : "The fitted slopes point in opposite directions.";
+    const intervals = [left.interval, right.interval].filter(Boolean);
+    const assessment = intervals.length < 2 ? " A 95% interval is unavailable for at least one region."
+      : intervals.every(excludesZero) ? " Both regional 95% intervals exclude zero."
+        : intervals.some(excludesZero) ? " One regional 95% interval includes zero."
+          : " Both regional 95% intervals include zero.";
+    finding.textContent = direction + assessment;
+  } else {
+    finding.textContent = !difference?.interval ? "A 95% interval for the difference in rates is unavailable."
+      : excludesZero(difference.interval)
+        ? `The paired 95% interval excludes zero. ${named(entries[difference.slope > 0 ? 0 : 1].region)} has the higher fitted temperature trend.`
+        : "The paired 95% interval includes zero. The data leave it unclear whether temperatures changed at different rates.";
+  }
+  evidence.textContent = `NASA POWER / MERRA-2 · 2001–2024 · ${left.years} annual means per region · slopes in ${unit}/decade`;
+  evidence.hidden = false;
+}
+
+$("trend-indicator").addEventListener("change", () => {
+  $("trend-question").value = "";
+  if (state.data) renderTrend(active());
+});
+$("trend-question").addEventListener("change", () => {
+  const question = $("trend-question").value;
+  if (question) {
+    $("trend-indicator").value = question;
+    for (const region of $("region-options").querySelectorAll("input")) {
+      region.checked = true;
+      state.selected.add(region.value);
+    }
+    render();
+  } else {
+    renderTrend(active());
+  }
+});
 
 function showAnnualRegion() {
   for (const card of $("annual-cards").children) {
