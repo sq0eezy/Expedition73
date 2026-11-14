@@ -1,0 +1,4 @@
+[
+  {"id":"A","display_name":"Colorado çevresi","window":"examples/a-window-2024","precipitation":"examples/precipitation-grid-probe-2024","audit":"examples/precipitation-area-audit-2024.json"},
+  {"id":"B","display_name":"Kuzey Alaska","window":"examples/b-window-2024","precipitation":"examples/precipitation-grid-probe-2024","audit":"examples/precipitation-area-audit-2024.json"}
+]

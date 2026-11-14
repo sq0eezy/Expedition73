@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Candidate monthly indicator adapter subset, not scientific acceptance",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "output_type", "result_id", "module", "region", "variable", "time", "spatial_support", "method", "provenance", "quality", "series", "module_details"],
+  "properties": {
+    "schema_version": {"const": "0.1.0"},
+    "output_type": {"const": "candidate_monthly_indicator_result"},
+    "result_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "module": {"type": "object", "additionalProperties": false, "required": ["id", "adapter_version", "source_version"],
+      "properties": {"id": {"enum": ["air_temperature_2m", "precipitation_rate"]}, "adapter_version": {"const": "0.1.0"}, "source_version": {"$ref": "#/$defs/version"}}},
+    "region": {"type": "object", "additionalProperties": false, "required": ["id", "candidate_bbox", "candidate_window_version", "selection_status"],
+      "properties": {"id": {"type": "string", "minLength": 1}, "candidate_bbox": {"type": "array", "items": {"type": "number"}, "minItems": 4, "maxItems": 4},
+        "candidate_window_version": {"type": "string", "minLength": 1}, "selection_status": {"const": "candidate"}}},
+    "variable": {"oneOf": [
+      {"const": {"id": "air_temperature_2m", "unit": "degC", "provider_parameter": "T2M", "height_m": 2}},
+      {"const": {"id": "precipitation_rate", "unit": "mm/day", "provider_parameter": "PRECTOTCORR"}}
+    ]},
+    "time": {"type": "object", "additionalProperties": false, "required": ["frequency", "start", "end", "calendar", "provider_time_standard"],
+      "properties": {"frequency": {"const": "monthly"}, "start": {"$ref": "#/$defs/month"}, "end": {"$ref": "#/$defs/month"},
+        "calendar": {"const": "gregorian"}, "provider_time_standard": {"const": "LST"}}},
+    "spatial_support": {"type": "object", "additionalProperties": false,
+      "required": ["kind", "mask", "cell_count", "window_area_m2", "grid_step_degrees", "cell_geometry_sha256"],
+      "properties": {"kind": {"const": "unmasked_rectangular_window"}, "mask": {"const": "none"},
+        "cell_count": {"type": "integer", "minimum": 1}, "window_area_m2": {"type": "number", "exclusiveMinimum": 0},
+        "grid_step_degrees": {"const": {"longitude": 0.625, "latitude": 0.5}}, "cell_geometry_sha256": {"$ref": "#/$defs/hash"}}},
+    "method": {"type": "object", "additionalProperties": false, "required": ["id", "version", "geometry", "geometry_version", "sphere_radius_m", "missing_policy"],
+      "properties": {"id": {"type": "string", "minLength": 1}, "version": {"$ref": "#/$defs/version"},
+        "geometry": {"const": "spherical_midpoint_cell_intersection"}, "geometry_version": {"const": "0.1.0"},
+        "sphere_radius_m": {"const": 6371008.8}, "missing_policy": {"const": "require_all_intersecting_cells"}}},
+    "provenance": {"type": "object", "additionalProperties": false,
+      "required": ["provider", "product", "api_version", "sources", "source_result_sha256", "input_files_sha256"],
+      "properties": {"provider": {"const": "NASA POWER"}, "product": {"const": "POWER Monthly and Annual API"},
+        "api_version": {"type": "string", "minLength": 1}, "sources": {"const": ["MERRA2"]},
+        "source_result_sha256": {"$ref": "#/$defs/hash"},
+        "input_files_sha256": {"type": "object", "minProperties": 1, "additionalProperties": {
+          "type": "object", "minProperties": 1, "additionalProperties": {"$ref": "#/$defs/hash"}}}}},
+    "quality": {"type": "object", "additionalProperties": false,
+      "required": ["expected_months", "complete_months", "warnings", "scientific_acceptance", "inference"],
+      "properties": {"expected_months": {"type": "integer", "minimum": 1, "maximum": 24}, "complete_months": {"type": "integer", "minimum": 0, "maximum": 24},
+        "warnings": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "scientific_acceptance": {"const": "not_performed"}, "inference": {"const": "not_performed"}}},
+    "series": {"type": "array", "minItems": 1, "maxItems": 24, "items": {
+      "type": "object", "additionalProperties": false, "required": ["date", "value", "status", "valid_cells", "valid_area_fraction"],
+      "properties": {"date": {"$ref": "#/$defs/month"}, "value": {"type": ["number", "null"]}, "status": {"enum": ["complete", "incomplete"]},
+        "valid_cells": {"type": "integer", "minimum": 0}, "valid_area_fraction": {"type": "number", "minimum": 0, "maximum": 1}}}},
+    "module_details": {"type": "object", "required": ["source_output_type", "source_method"],
+      "properties": {"source_output_type": {"enum": ["monthly_window_series", "candidate_precipitation_area_audit"]}, "source_method": {"type": "object"},
+        "latitude_context": {"type": "object", "additionalProperties": false,
+          "required": ["absolute_latitude_range_deg", "regime_hint", "observational_support_equivalence_accepted"],
+          "properties": {"absolute_latitude_range_deg": {"type": "array", "items": {"type": "number", "minimum": 0, "maximum": 90}, "minItems": 2, "maxItems": 2},
+            "regime_hint": {"enum": ["entirely_equatorward_42_5", "entirely_poleward_62_5", "transition_or_mixed_latitudes"]},
+            "observational_support_equivalence_accepted": {"const": false}}},
+        "temperature_control_result_sha256": {"$ref": "#/$defs/hash"},
+        "provider_annual_summary_handling": {"enum": ["not_consumed", "preserved_in_source_not_in_common_months"]},
+        "missing_counts": {"type": "array", "minItems": 1, "maxItems": 24, "items": {
+          "type": "object", "additionalProperties": false, "required": ["date", "provider_fill_cells", "not_returned_cells"],
+          "properties": {"date": {"$ref": "#/$defs/month"}, "provider_fill_cells": {"type": "integer", "minimum": 0}, "not_returned_cells": {"type": "integer", "minimum": 0}}}}}}
+  },
+  "$defs": {
+    "month": {"type": "string", "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])$"},
+    "hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"}
+  }
+}

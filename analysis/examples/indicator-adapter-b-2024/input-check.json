@@ -1,0 +1,28 @@
+{
+  "schema_version": "0.1.0",
+  "output_type": "candidate_indicator_input_check",
+  "input_result_ids": {
+    "temperature": "sha256:a96cce5f5534a50f48521d4f189150adc50ed9d6b18731ed87260ba613b1241d",
+    "precipitation": "sha256:6e3daf6ed8391c48090201cdf84cf0b11d9ed233172f6fbb6d758f5ff4741a42"
+  },
+  "technical_status": "compatible",
+  "reasons": [],
+  "paired_valid_months": 12,
+  "scientific_acceptance": "not_performed",
+  "relationship_calculated": false,
+  "units": {
+    "temperature": "degC",
+    "precipitation": "mm/day"
+  },
+  "warnings": [
+    "CANDIDATE_WINDOW_AND_METHOD_NOT_ACCEPTED",
+    "CANDIDATE_WINDOW_NOT_ACCEPTED_REGION",
+    "HIGH_LATITUDE_CORRECTION_REGIME_DIFFERS",
+    "INFERENCE_NOT_PERFORMED",
+    "NO_LAND_WATER_MASK",
+    "NO_OBSERVATIONAL_ACCURACY_VALIDATION",
+    "NO_SUBCELL_PRECIPITATION_INFORMATION",
+    "PROVIDER_PIXEL_QA_NOT_SUPPLIED",
+    "RECONSTRUCTED_CELL_BOUNDS_SPHERICAL_AREA"
+  ]
+}

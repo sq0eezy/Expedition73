@@ -1,0 +1,18 @@
+{
+  "schema_version": "0.1.0",
+  "retrieved_at": "2026-11-07T09:23:56+00:00",
+  "requests": {
+    "a-tile-001.json": {
+      "url": "https://power.larc.nasa.gov/api/temporal/monthly/regional?parameters=PRECTOTCORR&community=AG&longitude-min=-113.3125&longitude-max=-108.6875&latitude-min=35.75&latitude-max=39.25&format=JSON&start=2001&end=2023",
+      "sha256": "a2f0aaf126c9b384ab2a5ddb873080e3ac15a86b5d9b81add36fd483e4e1e6fb"
+    },
+    "b-tile-001.json": {
+      "url": "https://power.larc.nasa.gov/api/temporal/monthly/regional?parameters=PRECTOTCORR&community=AG&longitude-min=-156.3125&longitude-max=-152.6875&latitude-min=67.75&latitude-max=70.25&format=JSON&start=2001&end=2023",
+      "sha256": "e35527e436064efcdd06a2b09c0e9b6dbc14c719a623750ca59848ff2f83f931"
+    },
+    "b-tile-002.json": {
+      "url": "https://power.larc.nasa.gov/api/temporal/monthly/regional?parameters=PRECTOTCORR&community=AG&longitude-min=-153.3125&longitude-max=-149.6875&latitude-min=67.75&latitude-max=70.25&format=JSON&start=2001&end=2023",
+      "sha256": "b25ff568cc305278010362474663dc03cbbcb5b47b4cb57bc9ef446862aba9e7"
+    }
+  }
+}

@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Explore recorded NASA temperature and precipitation data across two candidate regions in Expedition 73.">
+  <title>Expedition 73 · Regional climate indicators</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module">
+    import("./app.js").catch((error) => {
+      const freshPage = new URL(location.href);
+      const alreadyRefreshed = freshPage.searchParams.has("refresh");
+      freshPage.searchParams.set("refresh", Date.now());
+      if (!alreadyRefreshed) {
+        location.replace(freshPage.href);
+        return;
+      }
+      console.error("Expedition 73 could not start.", error);
+      document.getElementById("startup-retry").href = freshPage.href;
+      document.getElementById("loading").hidden = true;
+      document.getElementById("startup-error").hidden = false;
+    });
+  </script>
+</head>
+<body data-screen="monthly" data-compare-chart="temperature" data-indicator-chart="temperature">
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="header"><a class="brand" href="./" aria-label="Expedition 73 home"><svg class="brand-mark" viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="16" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M9 28 18 17l6 7 4-5 7 9M7 33c6 3 24-4 32-17" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="35" cy="11" r="2.4" fill="#91ddc0"/></svg><span>EXPEDITION 73<span class="brand-sub">REGIONAL DATA LAB</span></span></a><div class="workspace-nav" role="tablist" aria-label="Workspace"><button id="tab-compare" type="button" role="tab" aria-controls="workspace-compare" aria-selected="true" tabindex="0" data-workspace="compare">Compare</button>
+          <button id="tab-indicators" type="button" role="tab" aria-controls="workspace-indicators" aria-selected="false" tabindex="-1" data-workspace="indicators">Indicators</button>
+          <button id="tab-region" type="button" role="tab" aria-controls="workspace-region" aria-selected="false" tabindex="-1" data-workspace="region">Region details</button>
+          <button id="tab-sources" type="button" role="tab" aria-controls="workspace-sources" aria-selected="false" tabindex="-1" data-workspace="sources">Data and methods</button></div></header>
+  <div id="startup-error" class="error" role="alert" hidden><h2>The application could not start</h2><p><a id="startup-retry" href="./">Reload the latest version</a></p></div>
+  <div id="error" class="error" role="alert" hidden><h2>Data could not be loaded</h2><p>Try loading the recorded results again. For a downloaded copy, open the site through the local HTTP server.</p><button id="retry" type="button">Try again</button></div>
+  <div id="loading" class="loading" role="status">Loading recorded NASA results…</div>
+  <div id="results" class="layout" hidden>
+    <aside class="sidebar" id="filter-panel" aria-label="Filters and chart settings">
+  <div class="filter-heading"><strong>Filters &amp; chart settings</strong><button id="close-filters" type="button" aria-label="Close filters">×</button></div>
+  <section class="controls" aria-label="Chart controls"><div class="policy-control"><label for="year">RECORDED YEAR</label><select id="year"></select></div><fieldset><legend>CANDIDATE REGIONS</legend><div id="region-options" class="region-options"></div></fieldset><div class="policy-control" data-outside-indicators><label for="policy">SURFACE WEIGHTING</label><select id="policy"><option value="unmasked">Whole region · unmasked</option><option value="land">Land fraction · FRLAND (candidate)</option><option value="land_and_ice">Land + land ice (candidate)</option></select></div>
+  <div class="shared-month"><div class="month-control"><label for="month">EXPLORE MONTH <strong id="month-label">January</strong></label><input id="month" type="range" min="0" max="11" value="0" step="1" aria-label="Selected month"><span class="month-end">DECEMBER</span></div></div></section>
+  <div class="context-filter" data-screens="monthly">
+    <label class="chart-choice" for="compare-chart-choice">CHART ON SMALL SCREENS</label>
+    <select class="chart-choice" id="compare-chart-choice"><option value="temperature">Monthly temperatures</option><option value="difference">Regional difference</option></select>
+    <div class="pair-controls"><div><label for="pair-left">LEFT REGION</label><select id="pair-left"></select></div><button id="pair-swap" type="button" aria-label="Reverse the comparison direction">⇄ <span>Swap regions</span></button><div><label for="pair-right">RIGHT REGION</label><select id="pair-right"></select></div></div>
+  </div>
+  <div class="context-filter" data-screens="indicator-month" hidden>
+    <label class="chart-choice" for="indicator-chart-choice">CHART ON SMALL SCREENS</label>
+    <select class="chart-choice" id="indicator-chart-choice"><option value="temperature">Air temperature</option><option value="precipitation">Precipitation rate</option></select>
+  </div>
+  <div class="context-filter annual-choice" data-screens="annual" hidden><label for="annual-region">REGION ON SMALL SCREENS</label><select id="annual-region"></select></div>
+  <div class="context-filter" data-screens="history" hidden><div class="month-control"><label for="history-month">SELECT MONTH <strong id="history-month-label"></strong></label><input id="history-month" type="range" min="0" max="0" value="0" step="1" aria-label="Selected month in the full record" disabled></div></div>
+  <div class="context-filter" data-screens="grid" hidden><div class="spatial-control"><label for="spatial-region">Grid cell region</label><select id="spatial-region"></select></div></div>
+  <div class="context-filter" data-screens="weight-workflow" hidden><div class="spatial-control"><label for="trace-region">Workflow region</label><select id="trace-region"></select></div></div>
+  <div class="context-filter" data-screens="indicator-workflow" hidden id="indicator-workflow-filters"><label for="indicator-trace-region">Workflow region</label><select id="indicator-trace-region"></select></div>
+  <div class="filter-actions"><button id="download" type="button">Download selected data as JSON <span aria-hidden="true">↓</span></button></div>
+</aside>
+    <main id="main" tabindex="-1">
+      <div class="view-bar">
+        <div id="views-compare" class="comparison-nav" role="tablist" aria-label="Compare views"><button id="tab-monthly" type="button" role="tab" data-view="monthly" aria-controls="view-monthly" aria-selected="true" tabindex="0">Selected year</button>
+          <button id="tab-history" type="button" role="tab" data-view="history" aria-controls="view-history" aria-selected="false" tabindex="-1">Full record</button>
+          <button id="tab-annual" type="button" role="tab" data-view="annual" aria-controls="view-annual" aria-selected="false" tabindex="-1">Annual summaries</button>
+          <button id="tab-trend" type="button" role="tab" data-view="trend" aria-controls="view-trend" aria-selected="false" tabindex="-1">Trends</button></div>
+        <div id="views-indicators" class="comparison-nav" role="tablist" aria-label="Indicators views" hidden><button id="tab-indicator-month" type="button" role="tab" data-view="indicator-month" aria-controls="view-indicator-month" aria-selected="true" tabindex="0">Monthly</button>
+          <button id="tab-rain-record" type="button" role="tab" data-view="rain-record" aria-controls="view-rain-record" aria-selected="false" tabindex="-1">Precipitation record</button>
+          <button id="tab-seasonal" type="button" role="tab" data-view="seasonal" aria-controls="view-seasonal" aria-selected="false" tabindex="-1">Seasonal profile</button>
+          <button id="tab-warm" type="button" role="tab" data-view="warm" aria-controls="view-warm" aria-selected="false" tabindex="-1">Warm months</button>
+          <button id="tab-weather-3d" type="button" role="tab" data-view="weather-3d" aria-controls="view-weather-3d" aria-selected="false" tabindex="-1">Weather globe</button>
+          <button id="tab-nasa-replay" type="button" role="tab" data-view="nasa-replay" aria-controls="view-nasa-replay" aria-selected="false" tabindex="-1">NASA replay</button>
+          <button id="tab-indicator-workflow" type="button" role="tab" data-view="indicator-workflow" aria-controls="view-indicator-workflow" aria-selected="false" tabindex="-1">Workflow &amp; export</button></div>
+        <div id="views-region" class="comparison-nav" role="tablist" aria-label="Region views" hidden><button id="tab-grid" type="button" role="tab" data-view="grid" aria-controls="view-grid" aria-selected="true" tabindex="0">Grid cells</button>
+          <button id="tab-coverage" type="button" role="tab" data-view="coverage" aria-controls="view-coverage" aria-selected="false" tabindex="-1">Area coverage</button></div>
+        <div id="views-sources" class="comparison-nav" role="tablist" aria-label="Sources views" hidden><button id="tab-sources-data" type="button" role="tab" data-view="sources-data" aria-controls="view-sources-data" aria-selected="true" tabindex="0">Data sources</button>
+          <button id="tab-weighting" type="button" role="tab" data-view="weighting" aria-controls="view-weighting" aria-selected="false" tabindex="-1">Weighting sensitivity</button>
+          <button id="tab-weight-workflow" type="button" role="tab" data-view="weight-workflow" aria-controls="view-weight-workflow" aria-selected="false" tabindex="-1">Calculation workflow</button></div>
+        <button id="toggle-filters" type="button" aria-controls="filter-panel" aria-expanded="false">Filters</button>
+      </div>
+      <div class="canvas" id="workspace-canvas">
+        <section id="workspace-compare" class="workspace-panel" role="tabpanel" aria-labelledby="tab-compare" tabindex="0"><div class="compare-metrics" data-screens="monthly"><p id="metrics-context" class="selection-context"></p><section id="metrics" class="metrics" aria-label="Temperatures for the selected month" aria-live="polite"></section></div><section id="view-monthly" class="deck-view" role="tabpanel" aria-labelledby="tab-monthly" tabindex="0"><div class="monthly-comparison" id="compare-plots"><section class="chart-panel" aria-labelledby="chart-heading"><div class="panel-heading"><div><span class="section-label">TIME SERIES</span><h2 id="chart-heading">Monthly temperatures</h2></div><div class="chart-unit">MONTHLY MEAN <strong>°C</strong></div></div><div id="legend" class="legend"></div><p id="empty" class="empty" hidden>Select at least one candidate region to view the chart.</p><div id="chart-wrap" class="chart-wrap"><svg id="chart" viewBox="0 0 920 290" role="img" aria-labelledby="chart-title chart-desc"></svg></div><p class="chart-caption" id="chart-caption"></p></section><section class="pair-panel" aria-labelledby="pair-heading">
+          <div class="panel-heading"><div><span class="section-label">BETWEEN TWO REGIONS</span><h2 id="pair-heading">Regional temperature difference</h2></div><span class="source-chip">Descriptive difference</span></div>
+          <p class="detail-note">Subtract the right region from the left. Positive values mean the left region was warmer that month.</p>
+
+          <p id="pair-empty" class="empty" hidden>Select at least two candidate regions to compare.</p>
+          <div id="pair-content"><p id="pair-status" role="status"></p><div id="pair-values"><svg id="pair-chart" viewBox="0 0 920 230" role="img" aria-labelledby="pair-chart-title pair-chart-desc"></svg><p id="pair-reading" class="pair-reading" role="status"></p><p id="pair-caption" class="detail-note"></p></div></div>
+          <div class="pair-actions"><details class="pair-summary"><summary>Yearly difference summary and valid month count</summary><div id="pair-metrics" class="pair-metrics"></div></details><details class="pair-table"><summary>Monthly regional differences table</summary><div class="table-scroll"><table id="pair-table"></table></div></details><details id="pair-checks"><summary>View data compatibility checks</summary><div class="table-scroll"><table id="pair-check-table"></table></div></details><details class="review-panel"><summary>Comparison report · download or open</summary><div class="review-controls"><button id="review-download" type="button" disabled>Download comparison report</button><button id="review-open" type="button" disabled>Open and verify a report</button><input id="review-file" type="file" accept=".json,application/json" hidden disabled></div>
+          <p id="review-message" class="detail-note" role="status">This browser processes reports locally.</p>
+          <p class="detail-note">The report records the regions, subtraction order, month, surface weighting, differences and dataset SHA-256. Opening it recomputes the values against the same dataset.</p>
+          </details><details class="comparison-limits"><summary>Scope and interpretation</summary><p class="detail-note">The boundaries, surface weights and long-term analysis methods remain under review. Each difference uses two valid values at their recorded precision. The display rounds to three decimal places to make the values easier to read.</p></details></div>
+        </section></div><details class="table-panel"><summary>View monthly values in a table</summary><div class="table-scroll"><table id="data-table"></table></div></details></section>
+        <section id="view-history" class="deck-view" role="tabpanel" aria-labelledby="tab-history" tabindex="0" hidden>        <section class="history-panel" aria-labelledby="history-heading">
+          <div class="panel-heading"><div><span class="section-label">FULL RECORDED PERIOD</span><h2 id="history-heading">Monthly temperatures across the full record</h2></div><span class="source-chip">Monthly records · °C</span></div>
+          <p class="detail-note">The chart shows each recorded month and preserves seasonal variation. Annual summaries have their own tab.</p>
+          <p id="history-status" class="detail-note" role="status"></p>
+          <div id="history-content" hidden><div id="history-legend" class="legend"></div><svg id="history-chart" viewBox="0 0 920 277" role="img" aria-labelledby="history-chart-title history-chart-desc"></svg>
+
+            <p class="detail-note">The selected month also updates the year and month controls, grid cells, sources and comparison details. Gaps show missing values. The vertical scale follows the visible series.</p>
+            <details class="history-values"><summary>View all recorded months in a table</summary><div class="table-scroll"><table id="history-table"></table></div></details>
+          </div>
+        </section>
+</section>
+        <section id="view-annual" class="deck-view" role="tabpanel" aria-labelledby="tab-annual" tabindex="0" hidden>        <section class="annual-panel" aria-labelledby="annual-heading">
+          <div class="panel-heading"><div><span class="section-label">ANNUAL SUMMARY / TWO METHODS</span><h2 id="annual-heading">How do the monthly values make up an annual mean?</h2></div><span id="annual-year" class="source-chip">2024</span></div>
+          <p class="detail-note">Compare two candidate annual means. One gives equal weight to each month. The other weights each month by its number of calendar days. The weighting method remains under review.</p>
+          <p id="annual-status" role="status" class="detail-note"></p><div id="annual-cards" class="annual-cards"></div>
+        </section>
+</section>
+        <section id="view-trend" class="deck-view" role="tabpanel" aria-labelledby="tab-trend" tabindex="0" hidden>
+          <section class="chart-panel trend-panel" aria-labelledby="trend-heading">
+            <div class="panel-heading">
+              <div><span class="section-label">2001–2024 · CANDIDATE REGIONS</span><h2 id="trend-heading">Temperature trend</h2></div>
+              <label class="trend-picker" for="trend-indicator">Indicator <select id="trend-indicator"><option value="temperature">2 m air temperature</option><option value="precipitation">Precipitation rate</option></select></label>
+            </div>
+            <p id="trend-description" class="detail-note"></p>
+            <p id="trend-status" class="detail-note" role="status"></p>
+            <div id="trend-results"></div>
+            <p id="trend-coverage" class="detail-note" hidden>MERRA-2 uses model precipitation over Northern Alaska's land. Correction coverage differs between regions.</p>
+            <div class="pair-actions">
+              <details id="trend-series" hidden><summary>View annual time series</summary><div id="trend-legend" class="legend"></div><svg id="trend-chart" viewBox="0 0 640 220" role="img" aria-label="Annual values by region"></svg></details>
+              <details id="trend-table-panel" hidden>
+                <summary>View annual values</summary>
+                <button id="trend-csv" type="button">Download annual values as CSV</button>
+                <div class="table-scroll"><table id="trend-table"></table></div>
+              </details>
+              <details><summary>Method and limitations</summary><p>We fit a straight line to 24 annual means for each whole, unmasked region. Each annual mean uses all 12 monthly values, weighted by calendar days. The paired temperature analysis fits the same model to the annual differences.</p><p>Approximate 95% confidence intervals use Newey–West standard errors with two annual lags and a small-sample adjustment. An interval that includes zero leaves the trend direction statistically inconclusive under this method. The intervals describe uncertainty under the fitted model.</p><p id="trend-coverage-method" hidden>Northern Alaska is above the latitude limit for MERRA-2's observation-based precipitation correction over land. Each precipitation slope describes the recorded product in its region.</p></details>
+            </div>
+          </section>
+        </section></section>
+        <section id="workspace-indicators" class="workspace-panel" role="tabpanel" aria-labelledby="tab-indicators" tabindex="0" hidden><p id="indicator-status" class="detail-note workspace-status" role="status">Verifying the two indicator records…</p><div id="indicator-content" class="indicator-content" hidden><section id="view-indicator-month" class="deck-view" role="tabpanel" aria-labelledby="tab-indicator-month" tabindex="0"><p id="indicator-empty" class="empty" hidden>Select at least one candidate region to explore.</p><div id="indicator-values"><h3 id="indicator-month-heading"></h3><div class="indicator-charts"><section class="chart-panel"><h3>2 m air temperature <span class="chart-unit">°C</span></h3><div id="indicator-temperature-legend" class="legend"></div><svg id="indicator-temperature-chart" role="group" aria-label="Monthly temperatures for the selected year"></svg></section><section class="chart-panel"><h3>Monthly mean precipitation rate <span class="chart-unit">mm/day</span></h3><div id="indicator-precipitation-legend" class="legend"></div><svg id="indicator-precipitation-chart" role="group" aria-label="Monthly precipitation rates for the selected year"></svg></section></div>
+  <div class="pair-actions">
+    <details><summary>Selected month values</summary><div class="table-scroll"><table id="indicator-monthly-values" aria-label="Temperature and precipitation for the selected month"></table></div></details>
+    <details><summary>View all 12 months in a table</summary><div class="table-scroll"><table id="indicator-all-values" aria-label="Monthly temperature and precipitation for the selected year"></table></div></details>
+    <details><summary>Precipitation coverage note</summary><p class="indicator-caveat">The precipitation product uses different observation-based correction coverage in the two regions. Northern Alaska falls within the high-latitude exception. The charts show the two indicators for the same months for descriptive exploration.</p></details>
+  </div>
+</div></section>
+        <section id="view-rain-record" class="deck-view" role="tabpanel" aria-labelledby="tab-rain-record" tabindex="0" hidden><section id="precipitation-history" aria-labelledby="precipitation-history-title" hidden>
+  <h3 id="precipitation-history-title">Precipitation record</h3>
+  <p class="detail-note">NASA POWER / MERRA-2 monthly mean daily rates for the whole region in mm/day.</p>
+  <section id="precipitation-timeline" class="chart-panel">
+    <h2>Monthly precipitation, 2001–2024</h2>
+    <p id="precipitation-timeline-status" class="detail-note"></p>
+    <div id="precipitation-history-legend" class="legend"></div>
+    <svg id="precipitation-history-chart" role="img" aria-label="Monthly precipitation rates for 2001 to 2024"></svg>
+  </section>
+</section></section>
+        <section id="view-seasonal" class="deck-view" role="tabpanel" aria-labelledby="tab-seasonal" tabindex="0" hidden><section id="seasonal-profile" class="chart-panel" aria-labelledby="seasonal-profile-title" hidden>
+  <h3 id="seasonal-profile-title">2024 Seasonal Profile</h3>
+  <p class="detail-note">Each point pairs a region's temperature and precipitation for one month of the selected year. Select a point to explore that month in both charts.</p>
+  <div class="seasonal-layout">
+    <div class="seasonal-plot">
+      <div id="seasonal-legend" class="legend"></div>
+      <p id="seasonal-empty" class="detail-note" hidden>No matched months to plot.</p>
+      <svg id="seasonal-chart" role="group" aria-label="Monthly temperature and precipitation scatter plot"></svg>
+    </div>
+    <div>
+      <h4>Precipitation during the three warmest months</h4>
+      <p class="detail-note">The summary weights each monthly rate by the number of days in that month.</p>
+      <div id="seasonal-summary"></div>
+    </div>
+  </div>
+
+</section></section>
+        <section id="view-warm" class="deck-view" role="tabpanel" aria-labelledby="tab-warm" tabindex="0" hidden><section class="chart-panel" id="seasonal-history" hidden>
+    <h2>Warm-month precipitation, 2001–2024</h2>
+    <p class="detail-note">Each region's three warmest months are chosen separately for each year. Their calendar-day-weighted mean precipitation rate is shown in mm/day.</p>
+    <p id="seasonal-history-status" class="detail-note"></p>
+    <div id="seasonal-history-legend" class="legend"></div>
+    <svg id="seasonal-history-chart" role="img" aria-label="Annual warm-month precipitation rates for 2001 to 2024"></svg>
+    <details><summary>View all 24 years in a table</summary><div class="table-scroll"><table id="seasonal-history-table" aria-label="Warmest months and mean precipitation rate for each year"></table></div></details>
+  </section></section>
+        <section id="view-weather-3d" class="deck-view" role="tabpanel" aria-labelledby="tab-weather-3d" tabindex="0" hidden>
+          <section class="chart-panel weather-panel">
+            <div class="panel-heading"><h2>Monthly weather on Earth</h2><span id="weather-date"></span></div>
+            <div class="weather-controls">
+              <button id="weather-play" type="button" aria-pressed="false">Play months</button>
+              <label class="sr-only" for="weather-month">Weather scene month</label>
+              <input id="weather-month" type="range" min="0" max="11" value="0" step="1">
+              <label><input id="weather-particles" type="checkbox" checked> Show precipitation</label>
+            </div>
+            <p id="weather-status" class="detail-note">Color shows monthly regional air temperature. Moving streaks illustrate mean precipitation rates.</p>
+            <div class="weather-layout">
+              <div class="weather-stage">
+                <canvas id="weather-globe" width="400" height="400" tabindex="0" aria-label="Earth globe. Arrow keys rotate. Plus and minus zoom." aria-describedby="globe-instructions"></canvas>
+                <p id="globe-status" class="globe-status" role="status">Loading the NASA basemap…</p>
+                <span id="globe-instructions">Drag to rotate · Scroll to zoom</span>
+                <button id="globe-reset" type="button">Reset globe</button>
+              </div>
+              <div id="weather-scenes" aria-describedby="weather-status"></div>
+            </div>
+            <div id="weather-legend" class="weather-legend" hidden>
+              <span>2 m air temperature</span><span id="weather-cold"></span><span class="weather-ramp" aria-hidden="true"></span><span id="weather-warm"></span>
+              <span id="weather-rain-scale"></span>
+            </div>
+            <p class="detail-note weather-credit"><a href="https://science.nasa.gov/earth/earth-observatory/blue-marble-next-generation/base-topography/" target="_blank" rel="noopener noreferrer">Basemap by NASA Earth Observatory</a> · Blue Marble, July 2004</p>
+          </section>
+        </section>
+        </div>
+        <section id="view-indicator-workflow" class="deck-view" role="tabpanel" aria-labelledby="tab-indicator-workflow" tabindex="0" hidden>
+          <section class="chart-panel workflow-view">
+            <div class="panel-heading"><div><span class="section-label">RECORDED 2024 WORKFLOW</span><h2>Sources and export</h2></div></div>
+            <p class="detail-note">The joint workflow and original indicator export are available for 2024.</p>
+            <button id="indicator-use2024" type="button" hidden>Go to 2024 workflow and export</button>
+            <div class="indicator-workflow-actions">
+              <details id="indicator-source-details" hidden><summary>Sources and coverage</summary><div id="indicator-sources"></div></details>
+              <button id="indicator-download" type="button" hidden>Download both indicators as JSON</button>
+            </div>
+            <section id="indicator-workflow-details" aria-labelledby="indicator-workflow-heading" hidden>
+              <h3 id="indicator-workflow-heading">How were the two indicators linked?</h3>
+              <p class="detail-note">Three recorded steps and two data dependencies were verified during the build. The checks cover technical alignment.</p>
+              <div class="trace-layout"><svg id="indicator-trace-graph" preserveAspectRatio="xMidYMin meet" role="group" aria-label="Recorded workflow for the two indicators"></svg><div id="indicator-trace-detail" aria-live="polite"></div></div>
+            </section>
+          </section>
+        </section>
+        <section id="view-nasa-replay" class="deck-view" role="tabpanel" aria-labelledby="tab-nasa-replay" tabindex="0" hidden>
+          <section class="chart-panel nasa-replay">
+            <div class="panel-heading"><h2>Hurricane Arthur</h2><span>July 3, 2014</span></div>
+            <p class="detail-note">NASA and JAXA’s GPM satellite tracked Arthur off South Carolina. The radar cross-sections show precipitation inside the storm at different heights.</p>
+            <video id="nasa-video" controls playsinline preload="none" aria-label="NASA radar visualization of Hurricane Arthur"></video>
+            <p id="nasa-video-error" class="detail-note" role="status" hidden>The video could not be played here. Open the NASA visualization for another format.</p>
+            <p class="detail-note">Recorded storm example · <a href="https://svs.gsfc.nasa.gov/4186/" target="_blank" rel="noopener noreferrer">NASA’s Scientific Visualization Studio</a></p>
+          </section>
+        </section></section>
+        <section id="workspace-region" class="workspace-panel" role="tabpanel" aria-labelledby="tab-region" tabindex="0" hidden><section id="view-grid" class="deck-view" role="tabpanel" aria-labelledby="tab-grid" tabindex="0"><section class="spatial-panel" aria-labelledby="spatial-heading">
+          <div class="panel-heading"><div><span class="section-label">REGION AND GRID CELLS</span><h2 id="spatial-heading">Temperature grid</h2></div><button id="open-cell-details" type="button">Cell details</button></div>
+          <p id="spatial-empty" class="empty" hidden>Select a candidate region to view its grid cells.</p>
+          <div id="spatial-content">
+            <div class="spatial-layout"><div><p id="spatial-context" class="detail-note"></p><svg id="cell-grid" viewBox="0 0 520 340" role="group" aria-label="Temperature grid cells in the candidate region" aria-describedby="grid-help"></svg><div class="temperature-key"><span id="scale-low"></span><span class="temperature-gradient" aria-hidden="true"></span><span id="scale-high"></span><span>°C · shared annual scale · Gray indicates missing data</span></div></div><div id="cell-detail" class="cell-detail" aria-live="polite"></div></div>
+            <details><summary>How to read the grid</summary><p id="grid-help" class="detail-note">Select a cell with the mouse or press Tab and use the arrow keys. The solid outline shows the candidate boundary and dashed outlines show complete grid cells. The diagram uses latitude and longitude coordinates.</p><p class="detail-note">Color shows the cell's air temperature for the selected month. Surface weighting changes the effective area contributing to the average. The calculation assumes each full-cell surface fraction also applies to the portion inside the boundary.</p></details>
+          </div>
+        </section></section>
+        <section id="view-coverage" class="deck-view" role="tabpanel" aria-labelledby="tab-coverage" tabindex="0" hidden><section class="support-panel"><div class="panel-heading"><div><span class="section-label">AREA AND BOUNDARY</span><h2>How much of the region is represented?</h2></div><span class="small-symbol" aria-hidden="true">◫</span></div><div id="support"></div><p id="support-note" class="detail-note"></p></section></section>
+        </section>
+        <section id="workspace-sources" class="workspace-panel" role="tabpanel" aria-labelledby="tab-sources" tabindex="0" hidden><section id="view-sources-data" class="deck-view" role="tabpanel" aria-labelledby="tab-sources-data" tabindex="0"><p id="recorded-coverage" class="detail-note" role="status"></p><section class="source-panel"><span class="section-label">SOURCE STATUS</span><h2>Data behind the results</h2><div class="source-line"><span>NASA POWER · T2M</span><span class="source-chip">Recorded</span></div><p>Monthly 2 m air temperature represents a source grid cell. Surface fractions determine how much each cell contributes to the regional mean.</p><div id="area-state" class="source-state"></div><div class="source-state"><span>Trend and significance</span><strong>See Compare → Trends</strong></div><details id="provenance"><summary>Source and method details</summary><div id="provenance-content"></div></details></section></section>
+        <section id="view-weighting" class="deck-view" role="tabpanel" aria-labelledby="tab-weighting" tabindex="0" hidden><section class="comparison-panel" aria-labelledby="comparison-heading">
+          <div class="panel-heading"><div><span class="section-label">SURFACE WEIGHTING SENSITIVITY</span><h2 id="comparison-heading">How much does weighting change the result?</h2></div><span id="comparison-month" class="comparison-month"></span></div>
+          <p class="detail-note">Three weighting options use the same recorded grid temperatures. The differences below compare weighting options within each region.</p>
+          <p id="comparison-empty" class="empty" hidden>Select a candidate region to compare weighting options.</p>
+          <div id="comparison-cards" class="comparison-grid"></div>
+          <p class="detail-note">The maximum absolute difference uses months with values for both options. Valid month counts are shown for each pair. Six decimal places make small calculation differences visible. The surface weighting method remains under review.</p>
+        </section></section>
+        <section id="view-weight-workflow" class="deck-view" role="tabpanel" aria-labelledby="tab-weight-workflow" tabindex="0" hidden><section class="trace-panel" aria-labelledby="trace-heading">
+          <div class="panel-heading"><div><span class="section-label">CALCULATION WORKFLOW</span><h2 id="trace-heading">How was monthly surface weighting calculated?</h2></div></div>
+          <p class="detail-note">The arrows show data dependencies. Both weighting steps use the same verified temperature and surface fraction records. Select a step with the mouse or press Tab and Enter for details.</p>
+          <p id="trace-empty" class="empty" hidden>Select a candidate region to view its workflow.</p>
+          <div id="trace-content"><p id="trace-summary" class="detail-note"></p><div class="trace-layout"><svg id="trace-graph" role="group" aria-label="Calculation dependencies verified during the build"></svg><div id="trace-detail" aria-live="polite"></div></div></div>
+          <p class="detail-note">This workflow was verified during the build. The step definition hash identifies the source snapshot and operation definition.</p>
+        </section></section></section>
+      </div>
+    </main>
+  </div>
+  <dialog id="cell-dialog" aria-labelledby="cell-dialog-title"><div class="detail-sheet-heading"><strong id="cell-dialog-title">Selected grid cell</strong><form method="dialog"><button type="submit">Close</button></form></div><div id="cell-dialog-body" class="detail-sheet-body"></div></dialog>
+  <noscript><p class="error">Enable JavaScript to use the interactive charts.</p></noscript>
+</body>
+</html>

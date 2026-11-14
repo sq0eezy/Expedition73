@@ -1,0 +1,93 @@
+name: Recorded T2M and preview checks
+
+on:
+  push:
+    branches: [main, 'codex/**']
+    paths: ['analysis/**', 'web/**', 'scripts/**', 'docker/**', 'Dockerfile', 'compose.yaml', '.dockerignore', '.github/workflows/analysis-checks.yml']
+  pull_request:
+    paths: ['analysis/**', 'web/**', 'scripts/**', 'docker/**', 'Dockerfile', 'compose.yaml', '.dockerignore', '.github/workflows/analysis-checks.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: recorded-checks-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native:
+    name: Offline checks · ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            python: analysis/.venv/bin/python
+          - os: macos-latest
+            python: analysis/.venv/bin/python
+          - os: windows-latest
+            python: analysis/.venv/Scripts/python.exe
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: docker/requirements.lock
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+      - name: Isolated Python setup
+        run: python scripts/workspace.py setup
+      - name: Complete offline checks and preview build
+        run: ${{ matrix.python }} scripts/workspace.py check
+      - name: Package and verify public demo
+        run: |
+          ${{ matrix.python }} scripts/workspace.py package
+          ${{ matrix.python }} scripts/workspace.py verify-package web/artifacts/expedition73-preview.zip
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2 · Node.js 24
+        with:
+          name: recorded-preview-${{ matrix.os }}
+          path: web/artifacts/expedition73-preview.zip
+          if-no-files-found: error
+          retention-days: 7
+  container:
+    name: Docker offline and HTTP · ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-24.04
+            architecture: x86_64
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            architecture: aarch64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Verify native runner architecture
+        run: test "$(uname -m)" = "${{ matrix.architecture }}"
+      - name: Container checks with no runtime network or credentials
+        env:
+          DOCKER_DEFAULT_PLATFORM: ${{ matrix.platform }}
+        run: docker compose --env-file docker/compose.env -p expedition73-ci run --rm --build checks
+      - name: Healthy static preview
+        env:
+          DOCKER_DEFAULT_PLATFORM: ${{ matrix.platform }}
+        run: docker compose --env-file docker/compose.env -p expedition73-ci up --build --wait --wait-timeout 90 preview
+      - name: Public HTTP smoke
+        run: python3 scripts/smoke_preview.py
+      - name: Stop owned containers
+        if: always()
+        env:
+          DOCKER_DEFAULT_PLATFORM: ${{ matrix.platform }}
+        run: docker compose --env-file docker/compose.env -p expedition73-ci down --remove-orphans

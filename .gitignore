@@ -1,0 +1,15 @@
+.env
+.env.*
+!.env.example
+.earthdata-*.tmp
+data/raw/
+private-notes/
+__pycache__/
+*.py[cod]
+.DS_Store
+Thumbs.db
+/ege.txt
+
+# Local team workspace
+/portal/
+/AGENTS.md

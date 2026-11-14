@@ -1,0 +1,179 @@
+{
+  "schema_version": "0.1.0",
+  "output_type": "candidate_monthly_indicator_result",
+  "module": {
+    "id": "air_temperature_2m",
+    "adapter_version": "0.1.0",
+    "source_version": "0.1.0"
+  },
+  "region": {
+    "id": "A",
+    "candidate_bbox": [
+      -113,
+      36,
+      -109,
+      39
+    ],
+    "candidate_window_version": "search-window-0.1.0",
+    "selection_status": "candidate"
+  },
+  "variable": {
+    "id": "air_temperature_2m",
+    "unit": "degC",
+    "height_m": 2,
+    "provider_parameter": "T2M"
+  },
+  "time": {
+    "frequency": "monthly",
+    "start": "2024-01",
+    "end": "2024-12",
+    "calendar": "gregorian",
+    "provider_time_standard": "LST"
+  },
+  "spatial_support": {
+    "kind": "unmasked_rectangular_window",
+    "mask": "none",
+    "cell_count": 56,
+    "window_area_m2": 117698095231.14151,
+    "grid_step_degrees": {
+      "longitude": 0.625,
+      "latitude": 0.5
+    },
+    "cell_geometry_sha256": "b2f4f06d8957b53f1148508b2cc174023b9a986725a68343225bcf2f74219d30"
+  },
+  "method": {
+    "id": "spherical_midpoint_cell_intersection",
+    "version": "0.1.0",
+    "sphere_radius_m": 6371008.8,
+    "missing_policy": "require_all_intersecting_cells",
+    "geometry": "spherical_midpoint_cell_intersection",
+    "geometry_version": "0.1.0"
+  },
+  "provenance": {
+    "provider": "NASA POWER",
+    "product": "POWER Monthly and Annual API",
+    "api_version": "v2.10.0",
+    "sources": [
+      "MERRA2"
+    ],
+    "source_result_sha256": "a31448bd3a52bedd4f6ba29b62ca55e8c1a3aa07d0d8590317f05dedb0bf3ad1",
+    "input_files_sha256": {
+      "temperature": {
+        "request.json": "50ea267a8378d5dc792e8974548f38cb4e30602c97233b613a3f987bff58bd49",
+        "response.json": "c38efad91ac280448589c68494d61d3749a499db9d72dcc6a710759e7a76b39c",
+        "result.json": "a31448bd3a52bedd4f6ba29b62ca55e8c1a3aa07d0d8590317f05dedb0bf3ad1"
+      }
+    }
+  },
+  "quality": {
+    "expected_months": 12,
+    "complete_months": 12,
+    "warnings": [
+      "CANDIDATE_WINDOW_NOT_ACCEPTED_REGION",
+      "INFERENCE_NOT_PERFORMED",
+      "NO_LAND_WATER_MASK",
+      "PROVIDER_PIXEL_QA_NOT_SUPPLIED",
+      "RECONSTRUCTED_CELL_BOUNDS_SPHERICAL_AREA"
+    ],
+    "scientific_acceptance": "not_performed",
+    "inference": "not_performed"
+  },
+  "series": [
+    {
+      "date": "2024-01",
+      "value": -0.3911184860434411,
+      "status": "complete",
+      "valid_cells": 56,
+      "valid_area_fraction": 1.0
+    },
+    {
+      "date": "2024-02",
+      "value": 1.9562775464491144,
+      "status": "complete",
+      "valid_cells": 56,
+      "valid_area_fraction": 1.0
+    },
+    {
+      "date": "2024-03",
+      "value": 4.7274316680339785,
+      "status": "complete",
+      "valid_cells": 56,
+      "valid_area_fraction": 1.0
+    },
+    {
+      "date": "2024-04",
+      "value": 10.141260496014947,
+      "status": "complete",
+      "valid_cells": 56,
+      "valid_area_fraction": 1.0
+    },
+    {
+      "date": "2024-05",
+      "value": 14.700572614359396,
+      "status": "complete",
+      "valid_cells": 56,
+      "valid_area_fraction": 1.0
+    },
+    {
+      "date": "2024-06",
+      "value": 24.637722288724632,
+      "status": "complete",
+      "valid_cells": 56,
+      "valid_area_fraction": 1.0
+    },
+    {
+      "date": "2024-07",
+      "value": 26.52282408687593,
+      "status": "complete",
+      "valid_cells": 56,
+      "valid_area_fraction": 1.0
+    },
+    {
+      "date": "2024-08",
+      "value": 24.143912692692258,
+      "status": "complete",
+      "valid_cells": 56,
+      "valid_area_fraction": 1.0
+    },
+    {
+      "date": "2024-09",
+      "value": 20.60329118658115,
+      "status": "complete",
+      "valid_cells": 56,
+      "valid_area_fraction": 1.0
+    },
+    {
+      "date": "2024-10",
+      "value": 15.085453287422478,
+      "status": "complete",
+      "valid_cells": 56,
+      "valid_area_fraction": 1.0
+    },
+    {
+      "date": "2024-11",
+      "value": 2.232066201468344,
+      "status": "complete",
+      "valid_cells": 56,
+      "valid_area_fraction": 1.0
+    },
+    {
+      "date": "2024-12",
+      "value": 1.9119379141080317,
+      "status": "complete",
+      "valid_cells": 56,
+      "valid_area_fraction": 1.0
+    }
+  ],
+  "module_details": {
+    "source_output_type": "monthly_window_series",
+    "source_method": {
+      "id": "spherical_midpoint_cell_intersection",
+      "version": "0.1.0",
+      "sphere_radius_m": 6371008.8,
+      "missing_policy": "require_all_intersecting_cells",
+      "inference": "not_performed"
+    },
+    "provider_annual_summary_handling": "preserved_in_source_not_in_common_months"
+  },
+  "result_id": "sha256:9f962cc45cec39be024b3e46be1c0beeaede18fc9a6081c6c0ab4bd1576c57e3"
+}

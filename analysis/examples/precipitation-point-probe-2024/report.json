@@ -1,0 +1,335 @@
+{
+  "schema_version": "0.1.0",
+  "output_type": "candidate_precipitation_point_probe",
+  "selection_status": "candidate",
+  "scientific_compatibility_accepted": false,
+  "region_mean_performed": false,
+  "monthly_total_conversion_performed": false,
+  "temperature_dependency_or_inference_performed": false,
+  "capture": {
+    "schema_version": "0.1.0",
+    "retrieved_at": "2026-10-27T21:09:12+00:00",
+    "requests": {
+      "A": {
+        "url": "https://power.larc.nasa.gov/api/temporal/monthly/point?parameters=T2M%2CPRECTOTCORR&community=AG&longitude=-111.0&latitude=37.5&start=2024&end=2024&format=JSON",
+        "sha256": "abef54d5abb0b61056a8622adff43c940baedd3778f2ff78a335b119a3dbf450"
+      },
+      "B": {
+        "url": "https://power.larc.nasa.gov/api/temporal/monthly/point?parameters=T2M%2CPRECTOTCORR&community=AG&longitude=-153.0&latitude=69.0&start=2024&end=2024&format=JSON",
+        "sha256": "12b914048caacf2499900fd70e1996e22d2d7f6f3939b7650979768b35d04857"
+      }
+    }
+  },
+  "regions": [
+    {
+      "region_id": "A",
+      "spatial_support": {
+        "kind": "point_sample",
+        "longitude": -111.0,
+        "latitude": 37.5
+      },
+      "precipitation_unit": "mm/day",
+      "temperature_unit": "degC",
+      "precipitation": [
+        {
+          "date": "2024-01",
+          "value": 0.73,
+          "status": "valid"
+        },
+        {
+          "date": "2024-02",
+          "value": 0.99,
+          "status": "valid"
+        },
+        {
+          "date": "2024-03",
+          "value": 1.03,
+          "status": "valid"
+        },
+        {
+          "date": "2024-04",
+          "value": 0.26,
+          "status": "valid"
+        },
+        {
+          "date": "2024-05",
+          "value": 0.12,
+          "status": "valid"
+        },
+        {
+          "date": "2024-06",
+          "value": 0.36,
+          "status": "valid"
+        },
+        {
+          "date": "2024-07",
+          "value": 0.22,
+          "status": "valid"
+        },
+        {
+          "date": "2024-08",
+          "value": 1.91,
+          "status": "valid"
+        },
+        {
+          "date": "2024-09",
+          "value": 0.1,
+          "status": "valid"
+        },
+        {
+          "date": "2024-10",
+          "value": 0.57,
+          "status": "valid"
+        },
+        {
+          "date": "2024-11",
+          "value": 0.22,
+          "status": "valid"
+        },
+        {
+          "date": "2024-12",
+          "value": 0.02,
+          "status": "valid"
+        }
+      ],
+      "temperature_control": [
+        {
+          "date": "2024-01",
+          "value": 0.6,
+          "status": "valid"
+        },
+        {
+          "date": "2024-02",
+          "value": 2.92,
+          "status": "valid"
+        },
+        {
+          "date": "2024-03",
+          "value": 6.3,
+          "status": "valid"
+        },
+        {
+          "date": "2024-04",
+          "value": 11.7,
+          "status": "valid"
+        },
+        {
+          "date": "2024-05",
+          "value": 16.46,
+          "status": "valid"
+        },
+        {
+          "date": "2024-06",
+          "value": 26.74,
+          "status": "valid"
+        },
+        {
+          "date": "2024-07",
+          "value": 28.31,
+          "status": "valid"
+        },
+        {
+          "date": "2024-08",
+          "value": 25.61,
+          "status": "valid"
+        },
+        {
+          "date": "2024-09",
+          "value": 22.07,
+          "status": "valid"
+        },
+        {
+          "date": "2024-10",
+          "value": 16.38,
+          "status": "valid"
+        },
+        {
+          "date": "2024-11",
+          "value": 3.0,
+          "status": "valid"
+        },
+        {
+          "date": "2024-12",
+          "value": 2.39,
+          "status": "valid"
+        }
+      ],
+      "joint_valid_months": 12,
+      "valid_precipitation_months": 12,
+      "provider_annual_summaries_separate": {
+        "PRECTOTCORR": 0.55,
+        "T2M": 13.57
+      },
+      "provider": {
+        "api_version": "v2.10.0",
+        "sources": [
+          "MERRA2"
+        ],
+        "time_standard": "LST",
+        "messages": []
+      },
+      "recorded_t2m_control": {
+        "context_matches": true,
+        "monthly_values_and_statuses_match": true,
+        "api_version_matches": true,
+        "baseline_response_sha256": "e79f6a2d1dba78fbbfff0d9f03584ee8c9c02ad1223f51bd432f099ddb06b8c6"
+      },
+      "point_config_canonical_sha256": "7e657ddce5e38e3d797c92101cb02647540a26b5e7602a4b4efb50a10b6ab0bc"
+    },
+    {
+      "region_id": "B",
+      "spatial_support": {
+        "kind": "point_sample",
+        "longitude": -153.0,
+        "latitude": 69.0
+      },
+      "precipitation_unit": "mm/day",
+      "temperature_unit": "degC",
+      "precipitation": [
+        {
+          "date": "2024-01",
+          "value": 0.81,
+          "status": "valid"
+        },
+        {
+          "date": "2024-02",
+          "value": 0.9,
+          "status": "valid"
+        },
+        {
+          "date": "2024-03",
+          "value": 0.62,
+          "status": "valid"
+        },
+        {
+          "date": "2024-04",
+          "value": 0.79,
+          "status": "valid"
+        },
+        {
+          "date": "2024-05",
+          "value": 1.32,
+          "status": "valid"
+        },
+        {
+          "date": "2024-06",
+          "value": 2.1,
+          "status": "valid"
+        },
+        {
+          "date": "2024-07",
+          "value": 4.85,
+          "status": "valid"
+        },
+        {
+          "date": "2024-08",
+          "value": 3.39,
+          "status": "valid"
+        },
+        {
+          "date": "2024-09",
+          "value": 2.22,
+          "status": "valid"
+        },
+        {
+          "date": "2024-10",
+          "value": 1.77,
+          "status": "valid"
+        },
+        {
+          "date": "2024-11",
+          "value": 0.7,
+          "status": "valid"
+        },
+        {
+          "date": "2024-12",
+          "value": 0.55,
+          "status": "valid"
+        }
+      ],
+      "temperature_control": [
+        {
+          "date": "2024-01",
+          "value": -22.89,
+          "status": "valid"
+        },
+        {
+          "date": "2024-02",
+          "value": -21.67,
+          "status": "valid"
+        },
+        {
+          "date": "2024-03",
+          "value": -21.49,
+          "status": "valid"
+        },
+        {
+          "date": "2024-04",
+          "value": -9.69,
+          "status": "valid"
+        },
+        {
+          "date": "2024-05",
+          "value": -2.88,
+          "status": "valid"
+        },
+        {
+          "date": "2024-06",
+          "value": 9.3,
+          "status": "valid"
+        },
+        {
+          "date": "2024-07",
+          "value": 10.92,
+          "status": "valid"
+        },
+        {
+          "date": "2024-08",
+          "value": 8.16,
+          "status": "valid"
+        },
+        {
+          "date": "2024-09",
+          "value": 2.48,
+          "status": "valid"
+        },
+        {
+          "date": "2024-10",
+          "value": -8.77,
+          "status": "valid"
+        },
+        {
+          "date": "2024-11",
+          "value": -19.71,
+          "status": "valid"
+        },
+        {
+          "date": "2024-12",
+          "value": -23.62,
+          "status": "valid"
+        }
+      ],
+      "joint_valid_months": 12,
+      "valid_precipitation_months": 12,
+      "provider_annual_summaries_separate": {
+        "PRECTOTCORR": 1.67,
+        "T2M": -8.29
+      },
+      "provider": {
+        "api_version": "v2.10.0",
+        "sources": [
+          "MERRA2"
+        ],
+        "time_standard": "LST",
+        "messages": []
+      },
+      "recorded_t2m_control": {
+        "context_matches": true,
+        "monthly_values_and_statuses_match": true,
+        "api_version_matches": true,
+        "baseline_response_sha256": "4ce99e71799d6f542a30a84965a754951abd097d49bb58b06c0e139e84533e47"
+      },
+      "point_config_canonical_sha256": "22b44fd81036446f9e817f4f0366055e078402b0943d0e7ef69f98f3a8eb0211"
+    }
+  ]
+}

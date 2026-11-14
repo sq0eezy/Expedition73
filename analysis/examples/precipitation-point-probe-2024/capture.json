@@ -1,0 +1,14 @@
+{
+  "schema_version": "0.1.0",
+  "retrieved_at": "2026-10-27T21:09:12+00:00",
+  "requests": {
+    "A": {
+      "url": "https://power.larc.nasa.gov/api/temporal/monthly/point?parameters=T2M%2CPRECTOTCORR&community=AG&longitude=-111.0&latitude=37.5&start=2024&end=2024&format=JSON",
+      "sha256": "abef54d5abb0b61056a8622adff43c940baedd3778f2ff78a335b119a3dbf450"
+    },
+    "B": {
+      "url": "https://power.larc.nasa.gov/api/temporal/monthly/point?parameters=T2M%2CPRECTOTCORR&community=AG&longitude=-153.0&latitude=69.0&start=2024&end=2024&format=JSON",
+      "sha256": "12b914048caacf2499900fd70e1996e22d2d7f6f3939b7650979768b35d04857"
+    }
+  }
+}
