@@ -265,6 +265,57 @@ export function summarizeTemperatureTrends(annual, snapshots, ids) {
   return { regions: series, difference };
 }
 
+export const ANOMALY_REFERENCE_PERIOD = Object.freeze({ start: 2001, end: 2010, label: "2001–2010" });
+
+export function summarizeTemperatureAnomalies(regions) {
+  if (!Array.isArray(regions)) throw Error("Expected regional annual series");
+  const { start, end, label } = ANOMALY_REFERENCE_PERIOD;
+  const referenceLength = end - start + 1;
+  return regions.map((entry) => {
+    const sourceRows = Array.isArray(entry?.rows) ? entry.rows : [];
+    const byYear = new Map();
+    let validStructure = sourceRows.length > 0;
+    for (const row of sourceRows) {
+      if (!Number.isInteger(row?.year) || byYear.has(row.year) ||
+          (row.value !== null && (typeof row.value !== "number" || !Number.isFinite(row.value)))) {
+        validStructure = false;
+        break;
+      }
+      byYear.set(row.year, row.value);
+    }
+    const referenceValues = [];
+    for (let year = start; year <= end; year++) {
+      const value = byYear.get(year);
+      if (typeof value === "number" && Number.isFinite(value)) referenceValues.push(value);
+    }
+    if (!validStructure || referenceValues.length !== referenceLength) {
+      return {
+        ...entry,
+        reference_period: label,
+        baseline: null,
+        status: "missing_reference",
+        message: `Temperature anomalies require complete ${label} reference years.`,
+        rows: sourceRows.map((row) => ({ year: row?.year, value: null })),
+        result: null,
+      };
+    }
+    const baseline = referenceValues.reduce((sum, value) => sum + value, 0) / referenceLength;
+    const rows = sourceRows.map(({ year, value }) => {
+      const anomaly = value === null ? null : value - baseline;
+      return { year, value: anomaly !== null && Number.isFinite(anomaly) ? anomaly : null };
+    });
+    return {
+      ...entry,
+      reference_period: label,
+      baseline,
+      status: "complete",
+      message: null,
+      rows,
+      result: fitAnnualTrend(rows),
+    };
+  });
+}
+
 export function createComparisonReview(data, datasetSha256, selection) {
   if (!/^[a-f0-9]{64}$/.test(datasetSha256) || data?.schema_version !== "0.3.0" || data.output_type !== "recorded_temperature_web_preview" || data.data_mode !== "recorded_offline_replay" || data.selection_status !== "candidate" || data.inference_performed !== false || !Array.isArray(data.regions) || !data.regions.length || data.regions.length > 8 || new Set(data.regions.map((r) => r.id)).size !== data.regions.length) throw Error("Unsupported review source snapshot");
   if (!selection || canonical(Object.keys(selection).sort()) !== canonical(["left_id", "month", "policy", "right_id"]) || !Object.values(selection).every((v) => typeof v === "string")) throw Error("Invalid review selection");

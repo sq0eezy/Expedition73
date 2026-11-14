@@ -1,4 +1,4 @@
-import { summarizePolicyDifferences, summarizeRegionDifferences, datasetDigest, createComparisonReview, verifyComparisonReview, recordedMonthlyHistory, validateAnnualPreview, summarizeTemperatureTrends } from "./comparison.mjs";
+import { ANOMALY_REFERENCE_PERIOD, summarizePolicyDifferences, summarizeRegionDifferences, datasetDigest, createComparisonReview, verifyComparisonReview, recordedMonthlyHistory, validateAnnualPreview, summarizeTemperatureAnomalies, summarizeTemperatureTrends } from "./comparison.mjs";
 import { traceGraph, validateAnnualWorkflow } from "./trace.mjs";
 import { seasonalProfilesByYear, summarizePrecipitationTrends, validateIndicatorPreview } from "./indicators.mjs";
 import { createWeatherGlobe } from "./globe.mjs";
@@ -359,7 +359,7 @@ function renderAnnual(regions) {
   showAnnualRegion();
 }
 
-function renderTrendSeries(entries, unit) {
+function renderTrendSeries(entries, unit, anomaly = false) {
   const chart = $("trend-chart"), legend = $("trend-legend");
   chart.replaceChildren();
   legend.replaceChildren();
@@ -371,17 +371,26 @@ function renderTrendSeries(entries, unit) {
   $("trend-series").hidden = !complete.length;
   if (!complete.length) return;
 
-  const values = complete.flatMap(({ rows, start, end }) => [...rows.map(({ value }) => value), start, end]);
+  const values = complete.flatMap(({ rows, start, end }) => [...rows.map(({ value }) => value), start, end, ...(anomaly ? [0] : [])]);
   const min = Math.min(...values), max = Math.max(...values);
   const padding = (max - min || 1) * 0.08;
   const low = min - padding, high = max + padding;
   const x = (year) => 60 + (year - 2001) * 558 / 23;
   const y = (value) => 183 - (value - low) * 159 / (high - low);
-  chart.setAttribute("aria-label", `Annual means, 2001–2024, ${unit}. Solid lines show recorded annual means. Dashed lines show fitted trends.`);
-  for (let i = 0; i <= 4; i++) {
-    const tick = low + (high - low) * i / 4;
-    chart.append(svg("line", { x1: 60, x2: 618, y1: y(tick), y2: y(tick), class: "chart-grid" }),
+  chart.setAttribute("aria-label", anomaly
+    ? `Temperature anomalies, 2001–2024, ${unit}. Relative to each region’s ${ANOMALY_REFERENCE_PERIOD.label} mean. Solid lines show annual anomalies. Dashed lines show fitted trends.`
+    : `Annual means, 2001–2024, ${unit}. Solid lines show recorded annual means. Dashed lines show fitted trends.`);
+  const ticks = Array.from({ length: 5 }, (_, i) => low + (high - low) * i / 4);
+  for (const tick of ticks) {
+    const isZero = anomaly && Math.abs(tick) < 1e-9;
+    chart.append(svg("line", { x1: 60, x2: 618, y1: y(tick), y2: y(tick), class: isZero ? "chart-grid chart-zero" : "chart-grid" }),
       svg("text", { x: 51, y: y(tick) + 4, "text-anchor": "end", class: "chart-text" }, number(tick)));
+  }
+  if (anomaly && ticks.every((tick) => Math.abs(tick) >= 1e-9)) {
+    chart.append(svg("line", { x1: 60, x2: 618, y1: y(0), y2: y(0), class: "chart-grid chart-zero", "data-zero-line": "0" }));
+    if (ticks.every((tick) => Math.abs(y(tick) - y(0)) > 12)) {
+      chart.append(svg("text", { x: 51, y: y(0) + 4, "text-anchor": "end", class: "chart-text" }, number(0)));
+    }
   }
   for (const year of [2001, 2006, 2012, 2018, 2024]) {
     chart.append(svg("text", { x: x(year), y: 207, "text-anchor": "middle", class: "chart-text" }, String(year)));
@@ -395,14 +404,17 @@ function renderTrendSeries(entries, unit) {
     label.style.color = stroke;
     legend.append(label);
   }
-  legend.append(el("span", `${unit} · dashed lines show fitted trends`));
+  legend.append(el("span", anomaly
+    ? `${unit} · Relative to each region’s ${ANOMALY_REFERENCE_PERIOD.label} mean · dashed lines show fitted trends`
+    : `${unit} · dashed lines show fitted trends`));
 }
 
-function renderTrendTable(entries, unit, indicator) {
+function renderTrendTable(entries, unit, indicator, anomaly = false) {
   const details = $("trend-table-panel"), table = $("trend-table"), download = $("trend-csv");
   const columns = entries.filter(({ result }) => result);
   details.hidden = !columns.length;
   download.disabled = !columns.length;
+  download.textContent = anomaly ? "Download temperature anomalies as CSV" : "Download annual values as CSV";
   if (!columns.length) {
     details.open = false;
     table.replaceChildren();
@@ -411,7 +423,9 @@ function renderTrendTable(entries, unit, indicator) {
   }
 
   const head = el("thead"), header = el("tr");
-  for (const label of ["Year", ...columns.map(({ id, region }) => `${id} · ${named(region)} (${unit})`)]) {
+  for (const label of ["Year", ...columns.map(({ id, region }) => anomaly
+    ? `${id} · ${named(region)} anomaly vs ${ANOMALY_REFERENCE_PERIOD.label} (${unit})`
+    : `${id} · ${named(region)} (${unit})`)]) {
     const cell = el("th", label);
     cell.scope = "col";
     header.append(cell);
@@ -419,7 +433,10 @@ function renderTrendTable(entries, unit, indicator) {
   head.append(header);
 
   const unitCode = indicator === "temperature" ? "degC" : "mm_per_day";
-  const csv = [["year", ...columns.map(({ id }) => `"region_${id.replaceAll('"', '""')}_${unitCode}"`)].join(",")];
+  const csvHeader = anomaly
+    ? ["year", ...columns.map(({ id }) => `"region_${id.replaceAll('"', '""')}_anomaly_${ANOMALY_REFERENCE_PERIOD.start}_${ANOMALY_REFERENCE_PERIOD.end}_${unitCode}"`)]
+    : ["year", ...columns.map(({ id }) => `"region_${id.replaceAll('"', '""')}_${unitCode}"`)];
+  const csv = [csvHeader.join(",")];
   const body = el("tbody");
   columns[0].rows.forEach(({ year }, index) => {
     const values = columns.map(({ rows }) => rows[index].value);
@@ -429,20 +446,29 @@ function renderTrendTable(entries, unit, indicator) {
     body.append(row);
     csv.push([year, ...values].join(","));
   });
-  table.replaceChildren(el("caption", `NASA POWER annual means, 2001–2024 · ${unit}`), head, body);
-  download.onclick = () => downloadFile(csv.join("\r\n") + "\r\n", "text/csv;charset=utf-8",
-    `expedition73-${indicator}-annual-means-2001-2024.csv`);
+  const caption = anomaly
+    ? `NASA POWER annual temperature anomalies, 2001–2024 · Relative to each region’s ${ANOMALY_REFERENCE_PERIOD.label} mean (${unit})`
+    : `NASA POWER annual means, 2001–2024 · ${unit}`;
+  table.replaceChildren(el("caption", caption), head, body);
+  const filename = anomaly
+    ? `expedition73-temperature-anomalies-2001-2024-ref-${ANOMALY_REFERENCE_PERIOD.start}-${ANOMALY_REFERENCE_PERIOD.end}.csv`
+    : `expedition73-${indicator}-annual-means-2001-2024.csv`;
+  download.onclick = () => downloadFile(csv.join("\r\n") + "\r\n", "text/csv;charset=utf-8", filename);
 }
 
 function renderTrend(regions) {
   const status = $("trend-status"), panel = $("trend-results");
   const indicator = $("trend-indicator").value;
   const precipitation = indicator === "precipitation";
+  $("trend-mode-picker").hidden = precipitation;
+  const anomaly = !precipitation && $("trend-mode").value === "anomalies";
   const unit = precipitation ? "mm/day" : "°C";
   $("trend-heading").textContent = precipitation ? "Precipitation trend" : "Temperature trend";
   $("trend-description").textContent = precipitation
     ? "NASA POWER · Annual mean daily precipitation"
-    : "NASA POWER · Annual mean 2 m air temperature";
+    : anomaly
+      ? `NASA POWER · Annual 2 m air temperature anomalies (${unit}) · Relative to each region’s ${ANOMALY_REFERENCE_PERIOD.label} mean`
+      : "NASA POWER · Annual mean 2 m air temperature";
   $("trend-coverage").hidden = !precipitation;
   $("trend-coverage-method").hidden = !precipitation;
   $("trend-series").hidden = true;
@@ -464,20 +490,26 @@ function renderTrend(regions) {
   const ids = regions.map(({ id }) => id);
   const fits = precipitation ? { regions: summarizePrecipitationTrends(history, ids) }
     : summarizeTemperatureTrends(state.annual, [...state.periods.values()].map(({ data }) => data), ids);
-  const entries = fits.regions.map((entry, i) => ({ ...entry, region: regions[i] }));
-  const rows = entries.map(({ id, region, result }) => ({ id, label: named(region), result }));
+  const seriesRegions = anomaly ? summarizeTemperatureAnomalies(fits.regions) : fits.regions;
+  const entries = seriesRegions.map((entry, i) => ({ ...entry, region: regions[i] }));
+  const rows = fits.regions.map(({ id, result }, i) => ({ id, label: named(regions[i]), result }));
   if (!precipitation && rows.length === 2) {
     rows.push({ id: "difference", label: `${ids[0]} − ${ids[1]} · paired trend difference`, result: fits.difference });
   }
-  renderTrendSeries(entries, unit);
-  renderTrendTable(entries, unit, indicator);
+  renderTrendSeries(entries, unit, anomaly);
+  renderTrendTable(entries, unit, indicator, anomaly);
   const bound = Math.max(.1, ...rows.flatMap(({ result }) => result
     ? [Math.abs(result.slope), ...(result.interval ?? []).map(Math.abs)] : []));
   const position = (value) => `${50 + 50 * value / bound}%`;
   const digits = precipitation ? 3 : 2;
   const rounding = 0.5 * 10 ** -digits;
   const signed = (value) => `${value >= rounding ? "+" : ""}${number(Math.abs(value) < rounding ? 0 : value, digits)}`;
-  status.textContent = "Approximate 95% intervals · dashed line at zero";
+  const missingRef = anomaly ? entries.filter(({ status }) => status === "missing_reference") : [];
+  status.textContent = missingRef.length
+    ? `Temperature anomalies unavailable for ${missingRef.map(({ id }) => id).join(", ")}: complete ${ANOMALY_REFERENCE_PERIOD.label} reference years are required.`
+    : anomaly
+      ? `Relative to each region’s ${ANOMALY_REFERENCE_PERIOD.label} mean · Approximate 95% intervals · dashed line at zero`
+      : "Approximate 95% intervals · dashed line at zero";
   for (const { id, label, result } of rows) {
     const card = el("article", undefined, "trend-row"); card.dataset.trend = id;
     card.append(el("h3", label));
@@ -505,6 +537,7 @@ function renderTrend(regions) {
   }
 }
 $("trend-indicator").addEventListener("change", () => { if (state.data) renderTrend(active()); });
+$("trend-mode").addEventListener("change", () => { if (state.data) renderTrend(active()); });
 
 function showAnnualRegion() {
   for (const card of $("annual-cards").children) {

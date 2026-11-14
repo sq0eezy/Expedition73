@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
-import { summarizePolicyDifferences, summarizeRegionDifferences, datasetDigest, createComparisonReview, verifyComparisonReview, recordedMonthlyHistory, validateAnnualPreview, fitAnnualTrend, summarizeTemperatureTrends } from '../src/comparison.mjs';
+import { ANOMALY_REFERENCE_PERIOD, summarizePolicyDifferences, summarizeRegionDifferences, datasetDigest, createComparisonReview, verifyComparisonReview, recordedMonthlyHistory, validateAnnualPreview, fitAnnualTrend, summarizeTemperatureAnomalies, summarizeTemperatureTrends } from '../src/comparison.mjs';
 
 const series = () => Array.from({ length: 12 }, (_, i) => ({ date: `2024-${String(i + 1).padStart(2, '0')}`, unmasked: 10, land: 10, land_and_ice: 10 }));
 
@@ -58,6 +58,59 @@ test('trend requires consecutive complete years and withholds an interval for an
   assert.equal(fitAnnualTrend(rows.slice(1)), null);
   rows[3].value = null;
   assert.equal(fitAnnualTrend(rows), null);
+});
+
+test('temperature anomalies use separate 2001–2010 regional baselines, have zero reference mean and withhold incomplete reference series', () => {
+  assert.deepEqual(ANOMALY_REFERENCE_PERIOD, { start: 2001, end: 2010, label: '2001–2010' });
+  const { payload, digest, snapshots } = annualCopy();
+  for (const { regions } of snapshots) for (const region of regions)
+    region.workflow_trace.nodes[0].output_contract.schema_version = '0.2.0';
+  const model = validateAnnualPreview(payload, digest, snapshots);
+  const { regions } = summarizeTemperatureTrends(model, snapshots, ['A', 'B']);
+  const before = structuredClone(regions);
+  const anomalies = summarizeTemperatureAnomalies(regions);
+  assert.deepEqual(regions, before);
+  assert.equal(anomalies.length, 2);
+  assert.notEqual(anomalies[0].baseline, anomalies[1].baseline);
+  assert.ok(Math.abs(anomalies[0].baseline - 10.865771736521133) < 1e-12);
+  assert.ok(Math.abs(anomalies[1].baseline - -9.047105545125367) < 1e-12);
+
+  anomalies.forEach((entry, index) => {
+    assert.equal(entry.status, 'complete');
+    assert.equal(entry.reference_period, '2001–2010');
+    assert.equal(entry.message, null);
+    const refRows = entry.rows.filter(({ year }) => year >= 2001 && year <= 2010);
+    assert.equal(refRows.length, 10);
+    const refMean = refRows.reduce((sum, { value }) => sum + value, 0) / refRows.length;
+    assert.ok(Math.abs(refMean) < 1e-12);
+    entry.rows.forEach((row, i) => {
+      assert.equal(row.year, regions[index].rows[i].year);
+      assert.ok(Math.abs(row.value - (regions[index].rows[i].value - entry.baseline)) < 1e-12);
+    });
+    assert.ok(Math.abs(entry.result.slope - regions[index].result.slope) < 1e-12);
+    assert.ok(Math.abs(entry.result.interval[0] - regions[index].result.interval[0]) < 1e-12);
+    assert.ok(Math.abs(entry.result.interval[1] - regions[index].result.interval[1]) < 1e-12);
+  });
+
+  const missingNull = structuredClone(regions);
+  missingNull[0].rows[4].value = null;
+  const partialResult = summarizeTemperatureAnomalies(missingNull);
+  assert.equal(partialResult[0].status, 'missing_reference');
+  assert.equal(partialResult[0].baseline, null);
+  assert.equal(partialResult[0].result, null);
+  assert.match(partialResult[0].message, /2001–2010/);
+  assert.ok(partialResult[0].rows.every(({ value }) => value === null));
+  assert.equal(partialResult[1].status, 'complete');
+  assert.ok(Math.abs(partialResult[1].baseline - anomalies[1].baseline) < 1e-12);
+
+  const missingYear = structuredClone(regions);
+  missingYear[1].rows = missingYear[1].rows.filter(({ year }) => year !== 2010);
+  const droppedYearResult = summarizeTemperatureAnomalies(missingYear);
+  assert.equal(droppedYearResult[0].status, 'complete');
+  assert.equal(droppedYearResult[1].status, 'missing_reference');
+  assert.equal(droppedYearResult[1].baseline, null);
+  assert.equal(droppedYearResult[1].result, null);
+  assert.ok(droppedYearResult[1].rows.every(({ value }) => value === null));
 });
 
 test('annual adapter accepts exact recorded reports and does not mutate or re-average inputs',()=>{

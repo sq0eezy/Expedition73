@@ -106,7 +106,10 @@
           <section class="chart-panel trend-panel" aria-labelledby="trend-heading">
             <div class="panel-heading">
               <div><span class="section-label">2001–2024 · CANDIDATE REGIONS</span><h2 id="trend-heading">Temperature trend</h2></div>
-              <label class="trend-picker" for="trend-indicator">Indicator <select id="trend-indicator"><option value="temperature">2 m air temperature</option><option value="precipitation">Precipitation rate</option></select></label>
+              <div class="trend-controls">
+                <label class="trend-picker" for="trend-indicator">Indicator <select id="trend-indicator"><option value="temperature">2 m air temperature</option><option value="precipitation">Precipitation rate</option></select></label>
+                <label id="trend-mode-picker" class="trend-picker" for="trend-mode">Series <select id="trend-mode"><option value="values">Annual values</option><option value="anomalies">Temperature anomalies</option></select></label>
+              </div>
             </div>
             <p id="trend-description" class="detail-note"></p>
             <p id="trend-status" class="detail-note" role="status"></p>

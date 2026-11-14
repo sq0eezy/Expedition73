@@ -427,6 +427,7 @@ body { height: 100dvh; display: grid; grid-template-rows: auto minmax(0, 1fr); }
 body[data-screen=trend] .controls > :is(.policy-control, .shared-month), body[data-screen=trend] .filter-actions { display: none; }
 .trend-panel { overflow: auto; }
 .trend-panel .panel-heading { flex-wrap: wrap; gap: 4px 12px; }
+.trend-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
 .trend-picker { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; }
 .trend-picker select { max-width: 100%; padding: 3px 6px; }
 #trend-chart { display: block; width: min(100%, 720px); height: auto; }
@@ -440,11 +441,15 @@ body[data-screen=trend] .controls > :is(.policy-control, .shared-month), body[da
 .trend-interval { height: 3px; }
 .trend-point { width: 8px; height: 8px; border-radius: 50%; transform: translate(-50%, -50%); }
 @media (max-width: 560px) {
-  .trend-panel { line-height: 1.3; }
-  .trend-row { padding: 4px 7px; }
-  .trend-row h3 { font-size: 14px; }
-  .trend-row .detail-note { margin: 2px 0; }
-  .trend-track { height: 10px; margin-block: 2px; }
+  .trend-panel { line-height: 1.25; }
+  .trend-controls { gap: 3px 8px; }
+  .trend-picker { font-size: 11px; gap: 4px; }
+  .trend-picker select { padding: 2px 4px; }
+  #trend-results { gap: 4px; }
+  .trend-row { padding: 3px 7px; }
+  .trend-row h3 { font-size: 13px; margin: 1px 0; }
+  .trend-row p, .trend-row .detail-note { margin: 1px 0; }
+  .trend-track { height: 9px; margin-block: 2px; }
 }
 body[data-screen=indicator-workflow] #indicator-content { display: none; }
 .deck-view :is(.chart-panel,.pair-panel,.history-panel,.annual-panel,.spatial-panel,.comparison-panel,.trace-panel,.support-panel,.source-panel) {
