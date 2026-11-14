@@ -434,9 +434,11 @@ function renderTrendTable(entries, unit, indicator) {
     `expedition73-${indicator}-annual-means-2001-2024.csv`);
 }
 
+const trendQuestions = [...document.querySelectorAll("[data-trend-question]")];
+
 function renderTrend(regions) {
   const status = $("trend-status"), panel = $("trend-results");
-  const question = $("trend-question").value;
+  const question = trendQuestions.some((button) => button.getAttribute("aria-pressed") === "true");
   const indicator = $("trend-indicator").value;
   const precipitation = indicator === "precipitation";
   const unit = precipitation ? "mm/day" : "°C";
@@ -537,22 +539,20 @@ function renderTrendInvestigation(precipitation, entries, difference, unit) {
 }
 
 $("trend-indicator").addEventListener("change", () => {
-  $("trend-question").value = "";
+  for (const button of trendQuestions) button.setAttribute("aria-pressed", "false");
   if (state.data) renderTrend(active());
 });
-$("trend-question").addEventListener("change", () => {
-  const question = $("trend-question").value;
-  if (question) {
-    $("trend-indicator").value = question;
+for (const button of trendQuestions) {
+  button.addEventListener("click", () => {
+    for (const choice of trendQuestions) choice.setAttribute("aria-pressed", String(choice === button));
+    $("trend-indicator").value = button.dataset.trendQuestion;
     for (const region of $("region-options").querySelectorAll("input")) {
       region.checked = true;
       state.selected.add(region.value);
     }
     render();
-  } else {
-    renderTrend(active());
-  }
-});
+  });
+}
 
 function showAnnualRegion() {
   for (const card of $("annual-cards").children) {

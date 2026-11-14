@@ -27,7 +27,7 @@ In **Compare → Selected year**, use **Copy comparison link** in the filters to
 
 ## Interpret the results
 
-In **Compare → Trends**, choose a question under **Try an investigation** to select the indicator and compare both regions. The summary interprets the fitted directions and the approximate 95% intervals. Open **View annual time series** for the chart, **View annual values** for the CSV, and **Method and limitations** for the source assumptions and statistical method.
+In **Compare → Trends**, choose one of the two **Try an investigation** buttons at the top of the screen. The answer appears directly below the questions, followed by the regional estimates and approximate 95% intervals. Open **View annual time series** for the chart, **View annual values** for the CSV, and **Method and limitations** for the source assumptions and statistical method.
 
 In **Compare → Trends**, open **View annual values** to inspect the 24 annual means used to fit each selected region's slope. The CSV download includes the same regions, with units in the column headings and values at calculation precision. Its values describe the whole, unmasked study windows.
 
