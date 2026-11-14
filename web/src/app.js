@@ -1,4 +1,4 @@
-import { ANOMALY_REFERENCE_PERIOD, summarizePolicyDifferences, summarizeRegionDifferences, datasetDigest, createComparisonReview, verifyComparisonReview, recordedMonthlyHistory, validateAnnualPreview, summarizeTemperatureAnomalies, summarizeTemperatureTrends } from "./comparison.mjs";
+import { ANOMALY_REFERENCE_PERIOD, TEMPERATURE_SEASONS, summarizePolicyDifferences, summarizeRegionDifferences, datasetDigest, createComparisonReview, verifyComparisonReview, recordedMonthlyHistory, validateAnnualPreview, summarizeTemperatureAnomalies, summarizeTemperatureTrends } from "./comparison.mjs";
 import { traceGraph, validateAnnualWorkflow } from "./trace.mjs";
 import { seasonalProfilesByYear, summarizePrecipitationTrends, validateIndicatorPreview } from "./indicators.mjs";
 import { createWeatherGlobe } from "./globe.mjs";
@@ -359,13 +359,15 @@ function renderAnnual(regions) {
   showAnnualRegion();
 }
 
-function renderTrendSeries(entries, unit, anomaly = false) {
+function renderTrendSeries(entries, unit, anomaly = false, seasonMeta = TEMPERATURE_SEASONS.annual) {
   const chart = $("trend-chart"), legend = $("trend-legend");
   chart.replaceChildren();
   legend.replaceChildren();
+  const startYear = seasonMeta.start, endYear = seasonMeta.end;
+  const spanYears = endYear - startYear;
   const complete = entries.filter(({ result }) => result).map((entry) => {
     const mean = entry.rows.reduce((sum, { value }) => sum + value, 0) / entry.rows.length;
-    const halfChange = entry.result.slope * 11.5 / 10;
+    const halfChange = entry.result.slope * spanYears / 20;
     return { ...entry, start: mean - halfChange, end: mean + halfChange };
   });
   $("trend-series").hidden = !complete.length;
@@ -375,11 +377,13 @@ function renderTrendSeries(entries, unit, anomaly = false) {
   const min = Math.min(...values), max = Math.max(...values);
   const padding = (max - min || 1) * 0.08;
   const low = min - padding, high = max + padding;
-  const x = (year) => 60 + (year - 2001) * 558 / 23;
+  const x = (year) => 60 + (year - startYear) * 558 / spanYears;
   const y = (value) => 183 - (value - low) * 159 / (high - low);
   chart.setAttribute("aria-label", anomaly
-    ? `Temperature anomalies, 2001–2024, ${unit}. Relative to each region’s ${ANOMALY_REFERENCE_PERIOD.label} mean. Solid lines show annual anomalies. Dashed lines show fitted trends.`
-    : `Annual means, 2001–2024, ${unit}. Solid lines show recorded annual means. Dashed lines show fitted trends.`);
+    ? `Temperature anomalies, ${seasonMeta.period}, ${unit}. Relative to each region’s ${ANOMALY_REFERENCE_PERIOD.label} mean. Solid lines show annual anomalies. Dashed lines show fitted trends.`
+    : seasonMeta.id === "annual"
+      ? `Annual means, ${seasonMeta.period}, ${unit}. Solid lines show recorded annual means. Dashed lines show fitted trends.`
+      : `${seasonMeta.label} means, ${seasonMeta.period}, ${unit}. Solid lines show recorded seasonal means. Dashed lines show fitted trends.`);
   const ticks = Array.from({ length: 5 }, (_, i) => low + (high - low) * i / 4);
   for (const tick of ticks) {
     const isZero = anomaly && Math.abs(tick) < 1e-9;
@@ -392,29 +396,37 @@ function renderTrendSeries(entries, unit, anomaly = false) {
       chart.append(svg("text", { x: 51, y: y(0) + 4, "text-anchor": "end", class: "chart-text" }, number(0)));
     }
   }
-  for (const year of [2001, 2006, 2012, 2018, 2024]) {
+  const yearTicks = startYear === 2002 ? [2002, 2007, 2013, 2019, 2024] : [2001, 2006, 2012, 2018, 2024];
+  for (const year of yearTicks) {
     chart.append(svg("text", { x: x(year), y: 207, "text-anchor": "middle", class: "chart-text" }, String(year)));
   }
   for (const { id, region, rows, start, end } of complete) {
     const stroke = color(region);
     chart.append(svg("polyline", { points: rows.map(({ year, value }) => `${x(year)},${y(value)}`).join(" "),
       fill: "none", stroke, "stroke-width": 2, "data-region": id, "data-records": rows.length }),
-      svg("line", { x1: x(2001), x2: x(2024), y1: y(start), y2: y(end), stroke, "stroke-width": 2, "stroke-dasharray": "5 4" }));
+      svg("line", { x1: x(startYear), x2: x(endYear), y1: y(start), y2: y(end), stroke, "stroke-width": 2, "stroke-dasharray": "5 4" }));
     const label = el("span", named(region));
     label.style.color = stroke;
     legend.append(label);
   }
   legend.append(el("span", anomaly
     ? `${unit} · Relative to each region’s ${ANOMALY_REFERENCE_PERIOD.label} mean · dashed lines show fitted trends`
-    : `${unit} · dashed lines show fitted trends`));
+    : seasonMeta.id === "annual"
+      ? `${unit} · dashed lines show fitted trends`
+      : `${unit} · ${seasonMeta.label} · ${seasonMeta.period} · dashed lines show fitted trends`));
 }
 
-function renderTrendTable(entries, unit, indicator, anomaly = false) {
+function renderTrendTable(entries, unit, indicator, anomaly = false, seasonMeta = TEMPERATURE_SEASONS.annual) {
   const details = $("trend-table-panel"), table = $("trend-table"), download = $("trend-csv");
   const columns = entries.filter(({ result }) => result);
   details.hidden = !columns.length;
   download.disabled = !columns.length;
-  download.textContent = anomaly ? "Download temperature anomalies as CSV" : "Download annual values as CSV";
+  const seasonal = !anomaly && indicator === "temperature" && seasonMeta.id !== "annual";
+  download.textContent = anomaly
+    ? "Download temperature anomalies as CSV"
+    : seasonal
+      ? `Download ${seasonMeta.shortLabel.toLowerCase()} values as CSV`
+      : "Download annual values as CSV";
   if (!columns.length) {
     details.open = false;
     table.replaceChildren();
@@ -425,7 +437,9 @@ function renderTrendTable(entries, unit, indicator, anomaly = false) {
   const head = el("thead"), header = el("tr");
   for (const label of ["Year", ...columns.map(({ id, region }) => anomaly
     ? `${id} · ${named(region)} anomaly vs ${ANOMALY_REFERENCE_PERIOD.label} (${unit})`
-    : `${id} · ${named(region)} (${unit})`)]) {
+    : seasonal
+      ? `${id} · ${named(region)} ${seasonMeta.label} (${unit})`
+      : `${id} · ${named(region)} (${unit})`)]) {
     const cell = el("th", label);
     cell.scope = "col";
     header.append(cell);
@@ -433,9 +447,12 @@ function renderTrendTable(entries, unit, indicator, anomaly = false) {
   head.append(header);
 
   const unitCode = indicator === "temperature" ? "degC" : "mm_per_day";
+  const seasonSlug = seasonMeta.id === "summer" ? "summer_jun_aug" : seasonMeta.id === "winter" ? "winter_dec_feb" : "";
   const csvHeader = anomaly
     ? ["year", ...columns.map(({ id }) => `"region_${id.replaceAll('"', '""')}_anomaly_${ANOMALY_REFERENCE_PERIOD.start}_${ANOMALY_REFERENCE_PERIOD.end}_${unitCode}"`)]
-    : ["year", ...columns.map(({ id }) => `"region_${id.replaceAll('"', '""')}_${unitCode}"`)];
+    : seasonal
+      ? ["year", ...columns.map(({ id }) => `"region_${id.replaceAll('"', '""')}_${seasonSlug}_${unitCode}"`)]
+      : ["year", ...columns.map(({ id }) => `"region_${id.replaceAll('"', '""')}_${unitCode}"`)];
   const csv = [csvHeader.join(",")];
   const body = el("tbody");
   columns[0].rows.forEach(({ year }, index) => {
@@ -448,11 +465,15 @@ function renderTrendTable(entries, unit, indicator, anomaly = false) {
   });
   const caption = anomaly
     ? `NASA POWER annual temperature anomalies, 2001–2024 · Relative to each region’s ${ANOMALY_REFERENCE_PERIOD.label} mean (${unit})`
-    : `NASA POWER annual means, 2001–2024 · ${unit}`;
+    : seasonal
+      ? `NASA POWER ${seasonMeta.label} means, ${seasonMeta.period}${seasonMeta.id === "winter" ? " (assigned to Jan–Feb year)" : ""} · ${unit}`
+      : `NASA POWER annual means, 2001–2024 · ${unit}`;
   table.replaceChildren(el("caption", caption), head, body);
   const filename = anomaly
     ? `expedition73-temperature-anomalies-2001-2024-ref-${ANOMALY_REFERENCE_PERIOD.start}-${ANOMALY_REFERENCE_PERIOD.end}.csv`
-    : `expedition73-${indicator}-annual-means-2001-2024.csv`;
+    : seasonal
+      ? `expedition73-temperature-${seasonSlug.replaceAll("_", "-")}-means-${seasonMeta.start}-${seasonMeta.end}.csv`
+      : `expedition73-${indicator}-annual-means-2001-2024.csv`;
   download.onclick = () => downloadFile(csv.join("\r\n") + "\r\n", "text/csv;charset=utf-8", filename);
 }
 
@@ -463,17 +484,30 @@ function renderTrend(regions) {
   const question = trendQuestions.some((button) => button.getAttribute("aria-pressed") === "true");
   const indicator = $("trend-indicator").value;
   const precipitation = indicator === "precipitation";
-  $("trend-mode-picker").hidden = precipitation;
-  const anomaly = !precipitation && $("trend-mode").value === "anomalies";
+  $("trend-season-picker").hidden = precipitation;
+  const season = precipitation ? "annual" : $("trend-season").value;
+  const seasonMeta = TEMPERATURE_SEASONS[season] ?? TEMPERATURE_SEASONS.annual;
+  $("trend-mode-picker").hidden = precipitation || season !== "annual";
+  const anomaly = !precipitation && season === "annual" && $("trend-mode").value === "anomalies";
   const unit = precipitation ? "mm/day" : "°C";
-  $("trend-heading").textContent = precipitation ? "Precipitation trend" : "Temperature trend";
+  $("trend-period-label").textContent = `${seasonMeta.period} · CANDIDATE REGIONS`;
+  $("trend-heading").textContent = precipitation
+    ? "Precipitation trend"
+    : season === "annual"
+      ? "Temperature trend"
+      : `${seasonMeta.shortLabel} temperature trend`;
   $("trend-description").textContent = precipitation
     ? "NASA POWER · Annual mean daily precipitation"
     : anomaly
       ? `NASA POWER · Annual 2 m air temperature anomalies (${unit}) · Relative to each region’s ${ANOMALY_REFERENCE_PERIOD.label} mean`
-      : "NASA POWER · Annual mean 2 m air temperature";
+      : season === "summer"
+        ? "NASA POWER · Summer (Jun–Aug) mean 2 m air temperature · Common 2002–2024 period (23 years)"
+        : season === "winter"
+          ? "NASA POWER · Winter (Dec–Feb, Jan–Feb year) mean 2 m air temperature · Common 2002–2024 period (23 years)"
+          : "NASA POWER · Annual mean 2 m air temperature";
   $("trend-coverage").hidden = !precipitation;
   $("trend-coverage-method").hidden = !precipitation;
+  $("trend-seasonal-method").hidden = precipitation || season === "annual";
   $("trend-series").hidden = true;
   panel.replaceChildren();
   $("trend-finding").textContent = question ? "This investigation needs verified records for both regions." : "";
@@ -494,15 +528,15 @@ function renderTrend(regions) {
   }
   const ids = regions.map(({ id }) => id);
   const fits = precipitation ? { regions: summarizePrecipitationTrends(history, ids) }
-    : summarizeTemperatureTrends(state.annual, [...state.periods.values()].map(({ data }) => data), ids);
+    : summarizeTemperatureTrends(state.annual, [...state.periods.values()].map(({ data }) => data), ids, season);
   const seriesRegions = anomaly ? summarizeTemperatureAnomalies(fits.regions) : fits.regions;
   const entries = seriesRegions.map((entry, i) => ({ ...entry, region: regions[i] }));
   const rows = fits.regions.map(({ id, result }, i) => ({ id, label: named(regions[i]), result }));
   if (!precipitation && rows.length === 2) {
     rows.push({ id: "difference", label: `${ids[0]} − ${ids[1]} · paired trend difference`, result: fits.difference });
   }
-  renderTrendSeries(entries, unit, anomaly);
-  renderTrendTable(entries, unit, indicator, anomaly);
+  renderTrendSeries(entries, unit, anomaly, seasonMeta);
+  renderTrendTable(entries, unit, indicator, anomaly, seasonMeta);
   if (question) renderTrendInvestigation(precipitation, fits.regions.map((entry, i) => ({ ...entry, region: regions[i] })), fits.difference, unit);
   const bound = Math.max(.1, ...rows.flatMap(({ result }) => result
     ? [Math.abs(result.slope), ...(result.interval ?? []).map(Math.abs)] : []));
@@ -515,19 +549,22 @@ function renderTrend(regions) {
     ? `Temperature anomalies unavailable for ${missingRef.map(({ id }) => id).join(", ")}: complete ${ANOMALY_REFERENCE_PERIOD.label} reference years are required.`
     : anomaly
       ? `Relative to each region’s ${ANOMALY_REFERENCE_PERIOD.label} mean · Approximate 95% intervals · dashed line at zero`
-      : "Approximate 95% intervals · dashed line at zero";
+      : season !== "annual"
+        ? `${seasonMeta.period} (${seasonMeta.years} years) · Approximate 95% intervals · Separate seasonal intervals do not test whether summer and winter slopes differ`
+        : "Approximate 95% intervals · dashed line at zero";
   for (const { id, label, result } of rows) {
     const card = el("article", undefined, "trend-row"); card.dataset.trend = id;
     card.append(el("h3", label));
     if (!result) {
-      card.append(el("p", "Trend unavailable. This comparison requires 24 complete, compatible years."));
+      card.append(el("p", `Trend unavailable. This comparison requires ${seasonMeta.years} complete, compatible years.`));
       panel.append(card);
       continue;
     }
-    const { slope, interval } = result;
+    const { slope, interval, years } = result;
     const values = el("p", undefined, "trend-values");
     values.append(el("strong", `${signed(slope)} ${unit}/decade`), el("span", interval
-      ? `95% CI ${signed(interval[0])} to ${signed(interval[1])}` : "Confidence interval unavailable"));
+      ? `95% CI ${signed(interval[0])} to ${signed(interval[1])}` : "Confidence interval unavailable"),
+      el("span", `${years} years (${seasonMeta.period})`, "trend-years"));
     const bar = el("div", undefined, "trend-track"); bar.setAttribute("aria-hidden", "true");
     const point = el("span", undefined, "trend-point"); point.style.left = position(slope);
     if (interval) {
@@ -573,11 +610,16 @@ $("trend-indicator").addEventListener("change", () => {
   for (const button of trendQuestions) button.setAttribute("aria-pressed", "false");
   if (state.data) renderTrend(active());
 });
+$("trend-season").addEventListener("change", () => {
+  for (const button of trendQuestions) button.setAttribute("aria-pressed", "false");
+  if (state.data) renderTrend(active());
+});
 $("trend-mode").addEventListener("change", () => { if (state.data) renderTrend(active()); });
 for (const button of trendQuestions) {
   button.addEventListener("click", () => {
     for (const choice of trendQuestions) choice.setAttribute("aria-pressed", String(choice === button));
     $("trend-indicator").value = button.dataset.trendQuestion;
+    $("trend-season").value = "annual";
     for (const region of $("region-options").querySelectorAll("input")) {
       region.checked = true;
       state.selected.add(region.value);

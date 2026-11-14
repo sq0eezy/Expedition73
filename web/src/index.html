@@ -121,9 +121,10 @@
               </div>
             </section>
             <div class="panel-heading">
-              <div><span class="section-label">2001–2024 · CANDIDATE REGIONS</span><h2 id="trend-heading">Temperature trend</h2></div>
+              <div><span id="trend-period-label" class="section-label">2001–2024 · CANDIDATE REGIONS</span><h2 id="trend-heading">Temperature trend</h2></div>
               <div class="trend-controls">
                 <label class="trend-picker" for="trend-indicator"><span>Indicator</span><select id="trend-indicator"><option value="temperature">2 m air temperature</option><option value="precipitation">Precipitation rate</option></select></label>
+                <label id="trend-season-picker" class="trend-picker" for="trend-season"><span>Season</span><select id="trend-season"><option value="annual">Annual</option><option value="summer">Summer (Jun–Aug)</option><option value="winter">Winter (Dec–Feb)</option></select></label>
                 <label id="trend-mode-picker" class="trend-picker" for="trend-mode"><span>Series</span><select id="trend-mode"><option value="values">Annual values</option><option value="anomalies">Temperature anomalies</option></select></label>
               </div>
             </div>
@@ -138,7 +139,7 @@
                 <button id="trend-csv" type="button">Download annual values as CSV</button>
                 <div class="table-scroll"><table id="trend-table"></table></div>
               </details>
-              <details><summary>Method and limitations</summary><p>We fit a straight line to 24 annual means for each whole, unmasked region. Each annual mean uses all 12 monthly values, weighted by calendar days. The paired temperature analysis fits the same model to the annual differences.</p><p>Approximate 95% confidence intervals use Newey–West standard errors with two annual lags and a small-sample adjustment. An interval that includes zero leaves the trend direction statistically inconclusive under this method. The intervals describe uncertainty under the fitted model.</p><p id="trend-coverage-method" hidden>Northern Alaska is above the latitude limit for MERRA-2's observation-based precipitation correction over land. Each precipitation slope describes the recorded product in its region.</p></details>
+              <details><summary>Method and limitations</summary><p>We fit a straight line to 24 annual means for each whole, unmasked region. Each annual mean uses all 12 monthly values, weighted by calendar days. The paired temperature analysis fits the same model to the annual differences.</p><p id="trend-seasonal-method" hidden>Summer (Jun–Aug) and Winter (Dec–Feb) trends use the common 2002–2024 period (23 complete seasons) from verified unmasked monthly temperatures weighted by calendar days, with each winter assigned to its January–February year (for example, Winter 2002 combines December 2001 with January and February 2002). Separate confidence intervals for summer and winter do not test whether the two seasonal slopes differ significantly.</p><p>Approximate 95% confidence intervals use Newey–West standard errors with two annual lags and a small-sample adjustment. An interval that includes zero leaves the trend direction statistically inconclusive under this method. The intervals describe uncertainty under the fitted model.</p><p id="trend-coverage-method" hidden>Northern Alaska is above the latitude limit for MERRA-2's observation-based precipitation correction over land. Each precipitation slope describes the recorded product in its region.</p></details>
             </div>
           </section>
         </section></section>

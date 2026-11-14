@@ -461,9 +461,9 @@ body[data-screen=trend] .controls > :is(.policy-control, .shared-month), body[da
 @media (max-width: 560px) {
   .trend-panel { line-height: 1.25; }
   .trend-panel .panel-heading > div > .section-label { display: none; }
-  .trend-controls { gap: 3px 6px; }
+  .trend-controls { gap: 3px 4px; }
   .trend-panel .trend-picker > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-  .trend-panel .panel-heading .trend-picker select { max-width: 118px; padding: 2px 4px; font-size: 11px; }
+  .trend-panel .panel-heading .trend-picker select { max-width: 94px; padding: 2px 3px; font-size: 11px; }
   #trend-description, #trend-status { margin: 2px 0; }
   .trend-panel:has(#trend-evidence:not([hidden])) #trend-description { display: none; }
   .trend-investigation { padding: 6px; margin-bottom: 5px; }
@@ -474,6 +474,7 @@ body[data-screen=trend] .controls > :is(.policy-control, .shared-month), body[da
   .trend-row { padding: 3px 7px; }
   .trend-row h3 { font-size: 13px; margin: 1px 0; }
   .trend-row .trend-values { font-size: 12px; column-gap: 8px; }
+  .trend-row .trend-years { display: none; }
   .trend-row p, .trend-row .detail-note { margin: 1px 0; }
   .trend-track { height: 9px; margin-block: 2px; }
 }

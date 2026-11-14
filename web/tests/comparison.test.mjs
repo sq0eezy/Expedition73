@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
-import { ANOMALY_REFERENCE_PERIOD, summarizePolicyDifferences, summarizeRegionDifferences, datasetDigest, createComparisonReview, verifyComparisonReview, recordedMonthlyHistory, validateAnnualPreview, fitAnnualTrend, summarizeTemperatureAnomalies, summarizeTemperatureTrends } from '../src/comparison.mjs';
+import { ANOMALY_REFERENCE_PERIOD, SEASONAL_TREND_PERIOD, TEMPERATURE_SEASONS, summarizePolicyDifferences, summarizeRegionDifferences, datasetDigest, createComparisonReview, verifyComparisonReview, recordedMonthlyHistory, validateAnnualPreview, fitAnnualTrend, summarizeSeasonalTemperatureTrends, summarizeTemperatureAnomalies, summarizeTemperatureTrends } from '../src/comparison.mjs';
 
 const series = () => Array.from({ length: 12 }, (_, i) => ({ date: `2024-${String(i + 1).padStart(2, '0')}`, unmasked: 10, land: 10, land_and_ice: 10 }));
 
@@ -56,8 +56,73 @@ test('trend requires consecutive complete years and withholds an interval for an
   const rows = Array.from({ length: 24 }, (_, i) => ({ year: 2001 + i, value: -3 + i / 2 }));
   assert.deepEqual(fitAnnualTrend(rows), { slope: 5, interval: null, years: 24 });
   assert.equal(fitAnnualTrend(rows.slice(1)), null);
+  assert.deepEqual(fitAnnualTrend(rows.slice(1), { startYear: 2002, endYear: 2024 }), { slope: 5, interval: null, years: 23 });
   rows[3].value = null;
   assert.equal(fitAnnualTrend(rows), null);
+});
+
+test('summer and winter 2002–2024 trends match independent matrix calculations, weight leap February and link December to the next winter year', () => {
+  assert.deepEqual(SEASONAL_TREND_PERIOD, { start: 2002, end: 2024, years: 23, label: '2002–2024' });
+  assert.equal(TEMPERATURE_SEASONS.summer.period, '2002–2024');
+  assert.equal(TEMPERATURE_SEASONS.winter.period, '2002–2024');
+  const { payload, digest, snapshots } = annualCopy();
+  for (const { regions } of snapshots) for (const region of regions)
+    region.workflow_trace.nodes[0].output_contract.schema_version = '0.2.0';
+  const model = validateAnnualPreview(payload, digest, snapshots);
+
+  const summer = summarizeTemperatureTrends(model, snapshots, ['A', 'B'], 'summer');
+  const expectedSummer = [
+    [0.3836990107162, -0.2132389400691, 0.9806369615016],
+    [-0.0355877042684, -0.6202038741795, 0.5490284656427],
+    [0.4192867149846, -0.6423430179483, 1.4809164479176],
+  ];
+  assert.equal(summer.season, 'summer');
+  assert.deepEqual(summer.regions[0].rows.map(({ year }) => year), Array.from({ length: 23 }, (_, i) => 2002 + i));
+  const a2002 = snapshots[1].regions[0].series;
+  const expectedSummer2002 = (a2002[5].unmasked * 30 + a2002[6].unmasked * 31 + a2002[7].unmasked * 31) / 92;
+  assert.ok(Math.abs(summer.regions[0].rows[0].value - expectedSummer2002) < 1e-12);
+  [...summer.regions.map(({ result }) => result), summer.difference].forEach(({ slope, interval, years }, i) => {
+    assert.equal(years, 23);
+    assert.ok([slope, ...interval].every((value, j) => Math.abs(value - expectedSummer[i][j]) < 1e-9));
+  });
+
+  const winter = summarizeTemperatureTrends(model, snapshots, ['A', 'B'], 'winter');
+  const expectedWinter = [
+    [0.3108142421531, -0.2875716306302, 0.9092001149363],
+    [0.1683449915752, -1.4117414621756, 1.7484314453259],
+    [0.1424692505779, -1.3043788671767, 1.5893173683325],
+  ];
+  assert.equal(winter.season, 'winter');
+  // Winter 2002 uses December 2001 (31d) + January 2002 (31d) + February 2002 (28d) = 90 days.
+  const dec2001 = snapshots[0].regions[0].series[11].unmasked;
+  const jan2002 = snapshots[1].regions[0].series[0].unmasked;
+  const feb2002 = snapshots[1].regions[0].series[1].unmasked;
+  assert.ok(Math.abs(winter.regions[0].rows[0].value - (dec2001 * 31 + jan2002 * 31 + feb2002 * 28) / 90) < 1e-12);
+  // Winter 2004 (leap year) uses December 2003 (31d) + January 2004 (31d) + February 2004 (29d) = 91 days.
+  const dec2003 = snapshots[2].regions[0].series[11].unmasked;
+  const jan2004 = snapshots[3].regions[0].series[0].unmasked;
+  const feb2004 = snapshots[3].regions[0].series[1].unmasked;
+  assert.ok(Math.abs(winter.regions[0].rows[2].value - (dec2003 * 31 + jan2004 * 31 + feb2004 * 29) / 91) < 1e-12);
+  [...winter.regions.map(({ result }) => result), winter.difference].forEach(({ slope, interval, years }, i) => {
+    assert.equal(years, 23);
+    assert.ok([slope, ...interval].every((value, j) => Math.abs(value - expectedWinter[i][j]) < 1e-9));
+  });
+
+  // Changing December 2002 affects Winter 2003 (index 1), never Winter 2002 (index 0).
+  const decCheck = structuredClone(snapshots);
+  decCheck[1].regions[0].series[11].unmasked += 90;
+  const shiftedWinter = summarizeSeasonalTemperatureTrends(decCheck, ['A'], 'winter');
+  assert.ok(Math.abs(shiftedWinter.regions[0].rows[0].value - winter.regions[0].rows[0].value) < 1e-12);
+  assert.ok(Math.abs(shiftedWinter.regions[0].rows[1].value - (winter.regions[0].rows[1].value + 31)) < 1e-12);
+
+  // Missing seasonal month does not impute values and withholds only the affected series and paired difference.
+  const missingMonth = structuredClone(snapshots);
+  missingMonth[0].regions[0].series[11].unmasked = null;
+  const incompleteWinter = summarizeSeasonalTemperatureTrends(missingMonth, ['A', 'B'], 'winter');
+  assert.equal(incompleteWinter.regions[0].rows[0].value, null);
+  assert.equal(incompleteWinter.regions[0].result, null);
+  assert.equal(incompleteWinter.regions[1].result.years, 23);
+  assert.equal(incompleteWinter.difference, null);
 });
 
 test('temperature anomalies use separate 2001–2010 regional baselines, have zero reference mean and withhold incomplete reference series', () => {

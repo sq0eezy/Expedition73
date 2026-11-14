@@ -210,12 +210,29 @@ export function validateAnnualPreview(payload, catalogSha256, snapshots) {
   return payload;
 }
 
-export function fitAnnualTrend(rows) {
-  if (!Array.isArray(rows) || rows.length !== 24 ||
-      !rows.every((row, i) => row?.year === 2001 + i && Number.isFinite(row.value))) return null;
+const T_CRITICAL_975 = Object.freeze({
+  21: 2.0796138447276773,
+  22: 2.0738730679,
+});
+
+export const SEASONAL_TREND_PERIOD = Object.freeze({ start: 2002, end: 2024, years: 23, label: "2002–2024" });
+
+export const TEMPERATURE_SEASONS = Object.freeze({
+  annual: Object.freeze({ id: "annual", label: "Annual", shortLabel: "Annual", period: "2001–2024", start: 2001, end: 2024, years: 24 }),
+  summer: Object.freeze({ id: "summer", label: "Summer (Jun–Aug)", shortLabel: "Summer", monthsLabel: "Jun–Aug", period: "2002–2024", start: 2002, end: 2024, years: 23 }),
+  winter: Object.freeze({ id: "winter", label: "Winter (Dec–Feb)", shortLabel: "Winter", monthsLabel: "Dec–Feb", period: "2002–2024", start: 2002, end: 2024, years: 23 }),
+});
+
+export function fitAnnualTrend(rows, { startYear = 2001, endYear = 2024 } = {}) {
+  const expectedLength = endYear - startYear + 1;
+  const tCritical = T_CRITICAL_975[expectedLength - 2];
+  if (!Array.isArray(rows) || !Number.isInteger(startYear) || !Number.isInteger(endYear) ||
+      !tCritical || rows.length !== expectedLength ||
+      !rows.every((row, i) => row?.year === startYear + i && typeof row.value === "number" && Number.isFinite(row.value))) return null;
 
   const n = rows.length, mean = rows.reduce((sum, row) => sum + row.value, 0) / n;
-  const x = rows.map(({ year }) => year - 2012.5);
+  const meanYear = (startYear + endYear) / 2;
+  const x = rows.map(({ year }) => year - meanYear);
   const sumSquares = x.reduce((sum, value) => sum + value * value, 0);
   const slope = rows.reduce((sum, row, i) => sum + x[i] * (row.value - mean), 0) / sumSquares;
   const residuals = rows.map((row, i) => row.value - mean - slope * x[i]);
@@ -232,15 +249,75 @@ export function fitAnnualTrend(rows) {
   const slopePerDecade = 10 * slope;
   const standardError = 10 * Math.sqrt(meat * n / (n - 2)) / sumSquares;
   if (!Number.isFinite(slopePerDecade) || !Number.isFinite(standardError)) return null;
-  // t(22, .975) gives an approximate interval for this fixed 24-year profile.
-  const halfWidth = 2.0738730679 * standardError;
+  const halfWidth = tCritical * standardError;
   const interval = Math.max(...residuals.map(Math.abs)) > 1e-12 && halfWidth > 0
     ? [slopePerDecade - halfWidth, slopePerDecade + halfWidth] : null;
   return { slope: slopePerDecade, interval, years: n };
 }
 
+function seasonMonthTriplet(year, season) {
+  if (season === "summer") {
+    return [
+      { year, month: 6, date: `${year}-06` },
+      { year, month: 7, date: `${year}-07` },
+      { year, month: 8, date: `${year}-08` },
+    ];
+  }
+  if (season === "winter") {
+    return [
+      { year: year - 1, month: 12, date: `${year - 1}-12` },
+      { year, month: 1, date: `${year}-01` },
+      { year, month: 2, date: `${year}-02` },
+    ];
+  }
+  throw Error(`Unsupported temperature season: ${season}`);
+}
+
+export function summarizeSeasonalTemperatureTrends(snapshots, ids, season) {
+  if (season !== "summer" && season !== "winter") throw Error("Expected summer or winter season");
+  if (!Array.isArray(ids)) throw Error("Expected region IDs");
+  const { start, end } = SEASONAL_TREND_PERIOD;
+  const years = Array.from({ length: end - start + 1 }, (_, i) => start + i);
+  const fitOptions = { startYear: start, endYear: end };
+  const series = ids.map((id) => {
+    let monthlyByDate = null;
+    try {
+      const history = recordedMonthlyHistory(snapshots, [id], "unmasked");
+      monthlyByDate = new Map(history.series[0].values.map(({ date, value }) => [date, value]));
+    } catch {
+      monthlyByDate = null;
+    }
+    const rows = years.map((year) => {
+      if (!monthlyByDate) return { year, value: null };
+      const months = seasonMonthTriplet(year, season);
+      const values = months.map(({ date }) => monthlyByDate.get(date));
+      if (values.some((v) => typeof v !== "number" || !Number.isFinite(v))) return { year, value: null };
+      const days = months.map(({ year: y, month: m }) => new Date(Date.UTC(y, m, 0)).getUTCDate());
+      const totalDays = days.reduce((sum, d) => sum + d, 0);
+      const weighted = values.reduce((sum, v, i) => sum + v * days[i], 0) / totalDays;
+      return { year, value: Number.isFinite(weighted) ? weighted : null };
+    });
+    return { id, rows, result: fitAnnualTrend(rows, fitOptions) };
+  });
+  const [left, right] = series;
+  const compatible = series.length === 2 && left.result && right.result &&
+    Array.isArray(snapshots) && snapshots.length === 24 &&
+    snapshots.every(({ regions }) => {
+      const a = regions?.find(({ id }) => id === left.id), b = regions?.find(({ id }) => id === right.id);
+      return a && b && summarizeRegionDifferences(a, b, "unmasked").compatible;
+    });
+  const difference = compatible ? fitAnnualTrend(left.rows.map((row, i) => ({
+    year: row.year, value: row.value - right.rows[i].value,
+  })), fitOptions) : null;
+  return { season, period: SEASONAL_TREND_PERIOD, regions: series, difference };
+}
+
 // Run only on the annual envelope already validated against the monthly snapshots.
-export function summarizeTemperatureTrends(annual, snapshots, ids) {
+export function summarizeTemperatureTrends(annual, snapshots, ids, season = "annual") {
+  if (season === "summer" || season === "winter") {
+    return summarizeSeasonalTemperatureTrends(snapshots, ids, season);
+  }
+  if (season !== "annual") throw Error(`Unsupported temperature season: ${season}`);
   const series = ids.map((id) => {
     const audit = annual.regions.find((entry) => entry.id === id)?.audit;
     const rows = audit?.series.map((row, i) => {
