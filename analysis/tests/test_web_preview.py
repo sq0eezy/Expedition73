@@ -124,7 +124,7 @@ class WebPreviewTests(unittest.TestCase):
             result = web_preview.build(ROOT, WEB, output)
             files = {p.relative_to(output).as_posix(): p.read_bytes() for p in output.rglob('*') if p.is_file()}
             self.assertEqual(set(files), {'index.html', 'styles.css', 'app.js', 'comparison.mjs', 'trace.mjs', 'indicators.mjs',
-                                          'globe.mjs', 'blue-marble.jpg', 'hurricane-arthur.jpg', 'hurricane-arthur.webm',
+                                          'globe.mjs', 'terrain.mjs', 'terrain-data.mjs', 'blue-marble.jpg', 'hurricane-arthur.jpg', 'hurricane-arthur.webm',
                                           'data/results.json', 'data/annual.json', 'data/indicators.json'})
             for media in ('blue-marble.jpg', 'hurricane-arthur.jpg', 'hurricane-arthur.webm'):
                 self.assertEqual(files[media], (WEB / 'src' / media).read_bytes())

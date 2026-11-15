@@ -72,6 +72,8 @@
           <button id="tab-nasa-replay" type="button" role="tab" data-view="nasa-replay" aria-controls="view-nasa-replay" aria-selected="false" tabindex="-1">NASA replay</button>
           <button id="tab-indicator-workflow" type="button" role="tab" data-view="indicator-workflow" aria-controls="view-indicator-workflow" aria-selected="false" tabindex="-1">Workflow &amp; export</button></div>
         <div id="views-region" class="comparison-nav" role="tablist" aria-label="Region views" hidden><button id="tab-grid" type="button" role="tab" data-view="grid" aria-controls="view-grid" aria-selected="true" tabindex="0">Grid cells</button>
+          <button id="tab-cell-trends" type="button" role="tab" data-view="cell-trends" aria-controls="view-cell-trends" aria-selected="false" tabindex="-1">Trend map</button>
+          <button id="tab-terrain" type="button" role="tab" data-view="terrain" aria-controls="view-terrain" aria-selected="false" tabindex="-1">3D terrain</button>
           <button id="tab-coverage" type="button" role="tab" data-view="coverage" aria-controls="view-coverage" aria-selected="false" tabindex="-1">Area coverage</button></div>
         <div id="views-sources" class="comparison-nav" role="tablist" aria-label="Sources views" hidden><button id="tab-sources-data" type="button" role="tab" data-view="sources-data" aria-controls="view-sources-data" aria-selected="true" tabindex="0">Data sources</button>
           <button id="tab-weighting" type="button" role="tab" data-view="weighting" aria-controls="view-weighting" aria-selected="false" tabindex="-1">Weighting sensitivity</button>
@@ -132,6 +134,7 @@
             <p id="trend-status" class="detail-note" role="status"></p>
             <div id="trend-results"></div>
             <p id="trend-coverage" class="detail-note" hidden>MERRA-2 uses model precipitation over Northern Alaska's land. Correction coverage differs between regions.</p>
+            <button id="open-cell-trends" type="button" class="cell-trend-link">Explore the temperature trend map →</button>
             <div class="pair-actions">
               <details id="trend-series" hidden><summary>View annual time series</summary><div id="trend-legend" class="legend"></div><svg id="trend-chart" viewBox="0 0 640 220" role="img" aria-label="Annual values by region"></svg></details>
               <details id="trend-table-panel" hidden>
@@ -252,6 +255,37 @@
             <details><summary>How to read the grid</summary><p id="grid-help" class="detail-note">Select a cell with the mouse or press Tab and use the arrow keys. The solid outline shows the candidate boundary and dashed outlines show complete grid cells. The diagram uses latitude and longitude coordinates.</p><p class="detail-note">Color shows the cell's air temperature for the selected month. Surface weighting changes the effective area contributing to the average. The calculation assumes each full-cell surface fraction also applies to the portion inside the boundary.</p></details>
           </div>
         </section></section>
+        <section id="view-cell-trends" class="deck-view" role="tabpanel" aria-labelledby="tab-cell-trends" tabindex="0" hidden>
+          <section class="chart-panel cell-trend-panel" aria-labelledby="cell-trends-heading">
+            <h2 id="cell-trends-heading">Where is temperature changing?</h2>
+            <p class="detail-note">NASA POWER · 2 m air temperature · 2001–2024. Select a cell to inspect its annual series.</p>
+            <div id="cell-trend-legend" class="cell-trend-legend" aria-label="Shared slope scale">
+              <span id="cell-trend-low"></span><span class="cell-trend-gradient" aria-hidden="true"></span><span id="cell-trend-high"></span><span>°C per decade · Gray: unavailable</span>
+            </div>
+            <p id="cell-trend-empty" class="detail-note" role="status" hidden></p>
+            <div id="cell-trend-maps" class="cell-trend-maps"></div>
+            <section id="cell-trend-detail" class="cell-trend-detail" aria-label="Selected cell trend" hidden>
+              <div><h3 id="cell-trend-selection"></h3><p id="cell-trend-slope" role="status"></p><p id="cell-trend-interval" class="detail-note"></p></div>
+              <svg id="cell-trend-chart" viewBox="0 0 390 104" role="img" aria-label="Selected cell annual temperatures"></svg>
+            </section>
+            <details><summary>Method and limitations</summary><p>Each fit uses 24 calendar-day-weighted annual means from the same grid cell. Cell colors show fitted slopes on one common scale centered on zero.</p><p>Cell intervals are approximate 95% Newey–West intervals with two yearly lags. These are individual exploratory intervals. No correction for testing multiple cells is applied.</p></details>
+          </section>
+        </section>
+        <section id="view-terrain" class="deck-view" role="tabpanel" aria-labelledby="tab-terrain" tabindex="0" hidden>
+          <section class="chart-panel terrain-panel" aria-labelledby="terrain-heading">
+            <h2 id="terrain-heading">Regional terrain</h2>
+            <div class="terrain-controls">
+              <label>Region <select id="terrain-region"></select></label>
+              <label>Surface colors <select id="terrain-layer"><option value="elevation">Elevation</option><option value="trend">Temperature trend</option></select></label>
+              <label>Rotate <input id="terrain-rotation" type="range" min="-180" max="180" value="-34"></label>
+              <label><input id="terrain-rain" type="checkbox"> Illustrative precipitation</label>
+            </div>
+            <p id="terrain-rain-note" class="detail-note" role="status"></p>
+            <canvas id="terrain-canvas" width="900" height="480" role="img" aria-label="Three-dimensional map of regional elevation"></canvas>
+            <p id="terrain-status" class="detail-note"></p>
+            <p class="detail-note">NOAA ETOPO 2022 elevation · 18× vertical exaggeration · blue water shown at sea level.</p>
+          </section>
+        </section>
         <section id="view-coverage" class="deck-view" role="tabpanel" aria-labelledby="tab-coverage" tabindex="0" hidden><section class="support-panel"><div class="panel-heading"><div><span class="section-label">AREA AND BOUNDARY</span><h2>How much of the region is represented?</h2></div><span class="small-symbol" aria-hidden="true">◫</span></div><div id="support"></div><p id="support-note" class="detail-note"></p></section></section>
         </section>
         <section id="workspace-sources" class="workspace-panel" role="tabpanel" aria-labelledby="tab-sources" tabindex="0" hidden><section id="view-sources-data" class="deck-view" role="tabpanel" aria-labelledby="tab-sources-data" tabindex="0"><p id="recorded-coverage" class="detail-note" role="status"></p><section class="source-panel"><span class="section-label">SOURCE STATUS</span><h2>Data behind the results</h2><div class="source-line"><span>NASA POWER · T2M</span><span class="source-chip">Recorded</span></div><p>Monthly 2 m air temperature represents a source grid cell. Surface fractions determine how much each cell contributes to the regional mean.</p><div id="area-state" class="source-state"></div><div class="source-state"><span>Trend and significance</span><strong>See Compare → Trends</strong></div><details id="provenance"><summary>Source and method details</summary><div id="provenance-content"></div></details></section></section>

@@ -9,7 +9,7 @@ from . import annual_workflow, history, masking, regional, surface_source, surfa
 from .power import PilotError, loads
 
 ASSETS = ("index.html", "styles.css", "app.js", "comparison.mjs", "trace.mjs", "indicators.mjs",
-          "globe.mjs", "blue-marble.jpg", "hurricane-arthur.jpg", "hurricane-arthur.webm")
+          "globe.mjs", "terrain.mjs", "terrain-data.mjs", "blue-marble.jpg", "hurricane-arthur.jpg", "hurricane-arthur.webm")
 
 
 def _spatial(window, mask, config, audit):

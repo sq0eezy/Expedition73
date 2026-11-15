@@ -17,12 +17,13 @@ LEGACY_PUBLIC = ('app.js', 'comparison.mjs', 'data/results.json', 'index.html', 
 PRIOR_PUBLIC = (*LEGACY_PUBLIC, 'trace.mjs')
 ANNUAL_PUBLIC = (*PRIOR_PUBLIC, 'data/annual.json')
 INDICATOR_PUBLIC = (*ANNUAL_PUBLIC, 'indicators.mjs', 'data/indicators.json')
-PUBLIC = (*INDICATOR_PUBLIC, 'globe.mjs', 'blue-marble.jpg', 'hurricane-arthur.jpg', 'hurricane-arthur.webm')
-PACKAGE_VERSION = '0.7.0'
+GLOBE_PUBLIC = (*INDICATOR_PUBLIC, 'globe.mjs', 'blue-marble.jpg', 'hurricane-arthur.jpg', 'hurricane-arthur.webm')
+PUBLIC = (*GLOBE_PUBLIC, 'terrain.mjs', 'terrain-data.mjs')
+PACKAGE_VERSION = '0.8.0'
 PACKAGE_CONTRACTS = {
     '0.1.0': (LEGACY_PUBLIC, '0.2.0'), '0.2.0': (PRIOR_PUBLIC, '0.3.0'), '0.3.0': (PRIOR_PUBLIC, '0.4.0'),
     '0.4.0': (ANNUAL_PUBLIC, '0.4.0'), '0.5.0': (ANNUAL_PUBLIC, '0.4.0'), '0.6.0': (INDICATOR_PUBLIC, '0.4.0'),
-    PACKAGE_VERSION: (PUBLIC, '0.4.0'),
+    '0.7.0': (GLOBE_PUBLIC, '0.4.0'), PACKAGE_VERSION: (PUBLIC, '0.4.0'),
 }
 ARCHIVE_NAMES = {*PUBLIC, 'manifest.json'}
 LIMIT = 8_000_000
@@ -88,7 +89,7 @@ def checks():
                  '--output-dir', Path(temp) / f'{region}-annual'], analysis)
     os.environ['EXPEDITION73_PYTHON']=sys.executable
     run([node, '--test', 'web/tests/comparison.test.mjs', 'web/tests/trace.test.mjs', 'web/tests/indicators.test.mjs'])
-    for name in ('app.js', 'comparison.mjs', 'trace.mjs', 'indicators.mjs', 'globe.mjs'):
+    for name in ('app.js', 'comparison.mjs', 'trace.mjs', 'indicators.mjs', 'globe.mjs', 'terrain.mjs', 'terrain-data.mjs'):
         run([node, '--check', f'web/src/{name}'])
     build()
     print('Offline analysis, A/B replay, JS checks and preview build passed.', flush=True)
