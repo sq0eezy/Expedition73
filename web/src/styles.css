@@ -429,6 +429,32 @@ body { height: 100dvh; display: grid; grid-template-rows: auto minmax(0, 1fr); }
 #indicator-status { flex: 0 0 auto; margin: 0 4px; font-size: 11px; }
 #indicator-content { height: auto; flex: 1; }
 body[data-screen=trend] .controls > :is(.policy-control, .shared-month), body[data-screen=trend] .filter-actions { display: none; }
+body[data-screen=cell-trends] .controls > :is(.policy-control, .shared-month), body[data-screen=cell-trends] .filter-actions { display: none; }
+body[data-screen=terrain] .filter-actions { display: none; }
+.cell-trend-link { align-self: flex-start; margin-block: 7px; padding: 4px 8px; border: 1px solid #9ebcb6; border-radius: 5px; color: #185b57; background: #eff6f5; }
+.cell-trend-panel { overflow: auto; }
+.cell-trend-maps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin-block: 8px; }
+.cell-trend-region, .cell-trend-detail { padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; background: #f3f7fa; }
+.cell-trend-region:only-child { grid-column: 1 / -1; }
+.cell-trend-region svg { display: block; width: 100%; max-height: min(33vh, 280px); }
+.cell-trend-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; font-size: 12px; }
+.cell-trend-gradient { width: clamp(80px, 16vw, 180px); height: 10px; background: linear-gradient(90deg, #3169a3, #f6f4ea, #aa3821); border-radius: 2px; }
+.cell-trend-detail { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); align-items: center; gap: 6px 10px; }
+#cell-trend-slope { font-size: clamp(17px, 2.1vw, 25px); color: #174955; font-weight: 700; margin: 2px 0; }
+#cell-trend-chart { width: 100%; max-height: 120px; }
+.cell-trend-series, .cell-trend-fit { fill: none; stroke: #185b57; stroke-width: 2; }
+.cell-trend-fit { stroke: #634531; stroke-dasharray: 5 4; }
+.terrain-panel { overflow: auto; }
+.terrain-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 7px 16px; margin: 7px 0 2px; }
+.terrain-controls label { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; }
+#terrain-rotation { width: clamp(80px, 16vw, 180px); }
+#terrain-canvas { align-self: center; width: min(100%, 900px); max-height: 62vh; object-fit: contain; margin: 5px 0; }
+@media (max-width: 560px) {
+  .cell-trend-region, .cell-trend-detail { padding: 4px; }
+  .cell-trend-region h3 { font-size: 13px; }
+  .cell-trend-detail { grid-template-columns: minmax(0, 1fr); }
+  #cell-trend-chart { max-height: 90px; }
+}
 .trend-panel { overflow: auto; }
 .trend-panel .panel-heading { flex-wrap: wrap; gap: 4px 12px; }
 .trend-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }

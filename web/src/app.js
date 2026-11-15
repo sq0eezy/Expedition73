@@ -1,7 +1,8 @@
-import { ANOMALY_REFERENCE_PERIOD, TEMPERATURE_SEASONS, summarizePolicyDifferences, summarizeRegionDifferences, datasetDigest, createComparisonReview, verifyComparisonReview, recordedMonthlyHistory, validateAnnualPreview, summarizeTemperatureAnomalies, summarizeTemperatureTrends } from "./comparison.mjs";
+import { ANOMALY_REFERENCE_PERIOD, TEMPERATURE_SEASONS, summarizePolicyDifferences, summarizeRegionDifferences, datasetDigest, createComparisonReview, verifyComparisonReview, recordedMonthlyHistory, validateAnnualPreview, summarizeGridTemperatureTrends, summarizeTemperatureAnomalies, summarizeTemperatureTrends } from "./comparison.mjs";
 import { traceGraph, validateAnnualWorkflow } from "./trace.mjs";
 import { seasonalProfilesByYear, summarizePrecipitationTrends, validateIndicatorPreview } from "./indicators.mjs";
 import { createWeatherGlobe } from "./globe.mjs";
+import { createTerrainView, terrainWindow } from "./terrain.mjs";
 
 const $ = (id) => document.getElementById(id);
 async function fetchRecordedData(url) {
@@ -48,8 +49,11 @@ function syncScreen() {
     block.hidden = !block.dataset.screens.split(" ").includes(view)
       || block.id === "indicator-workflow-filters" && state.year !== 2024;
   }
-  document.querySelector("[data-outside-indicators]").hidden = workspace === "indicators" || view === "trend";
+  document.querySelector("[data-outside-indicators]").hidden = workspace === "indicators" || ["trend", "cell-trends", "terrain"].includes(view);
   if (state.data && view === "trend") renderTrend(active());
+  if (state.data && view === "cell-trends") renderCellTrends(active());
+  if (state.data && view === "terrain") renderTerrain();
+  else terrainView?.stop?.();
   if (state.data) syncWeatherView(view);
 }
 
@@ -791,6 +795,199 @@ $("open-cell-details").addEventListener("click", () => {
   $("cell-dialog").showModal();
 });
 
+const cellTrendCatalogs = new WeakMap();
+const cellTrendNumber = (value) => `${value >= 0.005 ? "+" : ""}${number(Math.abs(value) < 0.005 ? 0 : value)}`;
+const gridOffsets = { ArrowRight: [0.625, 0], ArrowLeft: [-0.625, 0], ArrowUp: [0, 0.5], ArrowDown: [0, -0.5] };
+let selectedTrendCell = null;
+
+function renderCellTrendDetail(region, cell) {
+  const detail = $("cell-trend-detail"), chart = $("cell-trend-chart");
+  detail.hidden = !cell;
+  chart.replaceChildren();
+  if (!cell) return;
+  $("cell-trend-selection").textContent = `${named(region)} · ${cell.latitude}° lat, ${cell.longitude}° lon`;
+  const { result, rows } = cell;
+  $("cell-trend-slope").textContent = result ? `${cellTrendNumber(result.slope)} °C per decade` : "Trend unavailable";
+  $("cell-trend-interval").textContent = result?.interval
+    ? `Approx. 95% interval: ${result.interval.map(cellTrendNumber).join(" to ")} °C per decade · ${result.years} years`
+    : result ? "Confidence interval unavailable." : "A fit requires all 24 annual means.";
+  chart.toggleAttribute("hidden", !result);
+  if (!result) return;
+  const values = rows.map(({ value }) => value);
+  const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+  const halfChange = result.slope * (rows.at(-1).year - rows[0].year) / 20;
+  const low = Math.min(...values, mean - halfChange, mean + halfChange);
+  const high = Math.max(...values, mean - halfChange, mean + halfChange);
+  const span = Math.max(high - low, 0.01);
+  const x = (i) => 49 + i * 292 / (rows.length - 1);
+  const y = (value) => 77 - (value - low) * 61 / span;
+  chart.setAttribute("aria-label", `Annual temperatures for the selected cell in ${named(region)}, 2001 to 2024, degrees Celsius.`);
+  for (const value of [low, high]) {
+    chart.append(svg("line", { x1: x(0), x2: x(rows.length - 1), y1: y(value), y2: y(value), class: "chart-grid" }),
+      svg("text", { x: 43, y: y(value) + 4, "text-anchor": "end", class: "chart-text" }, number(value, 1)));
+  }
+  chart.append(svg("polyline", { points: values.map((value, i) => `${x(i)},${y(value)}`).join(" "),
+    class: "cell-trend-series", "data-records": values.length }),
+  svg("line", { x1: x(0), x2: x(rows.length - 1), y1: y(mean - halfChange), y2: y(mean + halfChange), class: "cell-trend-fit" }),
+  svg("text", { x: x(0), y: 97, class: "chart-text" }, String(rows[0].year)),
+  svg("text", { x: x(rows.length - 1), y: 97, "text-anchor": "end", class: "chart-text" }, String(rows.at(-1).year)));
+}
+
+function cellTrendData() {
+  let catalog = cellTrendCatalogs.get(state.periods);
+  if (!catalog) {
+    const snapshots = [...state.periods.values()].map(({ data }) => data);
+    const regionsAtStart = snapshots[0]?.regions ?? [];
+    catalog = new Map(regionsAtStart.map(({ id }) => {
+      try { return [id, summarizeGridTemperatureTrends(snapshots, id)]; }
+      catch { return [id, []]; }
+    }));
+    cellTrendCatalogs.set(state.periods, catalog);
+  }
+  const slopes = [...catalog.values()].flatMap((cells) => cells.flatMap(({ result }) => result ? [Math.abs(result.slope)] : []));
+  const bound = Math.ceil(Math.max(0.1, ...slopes) * 10) / 10;
+  return { catalog, bound, hasSlopes: slopes.length > 0 };
+}
+
+function cellTrendColor(slope, bound) {
+  if (!Number.isFinite(slope)) return "#adb9bf";
+  const pivot = [246, 244, 234];
+  const end = slope < 0 ? [49, 105, 163] : [170, 56, 33];
+  return `rgb(${pivot.map((channel, i) => Math.round(channel + (end[i] - channel) * Math.abs(slope) / bound)).join(",")})`;
+}
+
+function renderCellTrends(regions) {
+  const { catalog, bound, hasSlopes } = cellTrendData();
+  $("cell-trend-low").textContent = cellTrendNumber(-bound);
+  $("cell-trend-high").textContent = cellTrendNumber(bound);
+  $("cell-trend-legend").hidden = !hasSlopes || !regions.length;
+  $("cell-trend-empty").hidden = !!regions.length;
+  $("cell-trend-empty").textContent = "Select at least one candidate region.";
+
+  const selection = regions.find(({ id }) => id === selectedTrendCell?.id && catalog.get(id)?.length)
+    ?? regions.find(({ id }) => catalog.get(id)?.length);
+  const selectionCells = catalog.get(selection?.id);
+  if (selection && selection.id !== selectedTrendCell?.id) selectedTrendCell = { id: selection.id, index: 0 };
+  const chosen = selectionCells?.[selectedTrendCell?.index];
+  renderCellTrendDetail(selection, chosen);
+
+  $("cell-trend-maps").replaceChildren(...regions.map((region) => {
+    const cells = catalog.get(region.id);
+    const panel = el("section", undefined, "cell-trend-region");
+    panel.dataset.region = region.id;
+    panel.append(el("h3", named(region)));
+    if (!cells?.length) {
+      panel.append(el("p", "A compatible 2001–2024 cell record is unavailable.", "detail-note"));
+      return panel;
+    }
+    const [west, south, east, north] = region.region.candidate_bbox;
+    const width = (east - west) * Math.cos((north + south) / 2 * Math.PI / 180);
+    const height = north - south;
+    const scale = Math.min(324 / width, 156 / height);
+    const x = (lon) => 180 + ((lon - west) / (east - west) - 0.5) * width * scale;
+    const y = (lat) => 91 - ((lat - south) / height - 0.5) * height * scale;
+    const map = svg("svg", { viewBox: "0 0 360 182", role: "group", "aria-label": `${named(region)} cell slopes in degrees Celsius per decade` });
+    cells.forEach((cell, index) => {
+      const slope = cell.result?.slope;
+      const fill = cellTrendColor(slope, bound);
+      const [w, s, e, n] = cell.bounds;
+      const selected = region === selection && index === selectedTrendCell.index;
+      const label = `${cell.latitude}° latitude, ${cell.longitude}° longitude: ${cell.result ? cellTrendNumber(slope) + " °C per decade" : "trend unavailable"}`;
+      const rect = svg("rect", { x: x(w), y: y(n), width: x(e) - x(w), height: y(s) - y(n),
+        fill, class: "grid-cell", role: "button", tabindex: selected || (region !== selection && index === 0) ? 0 : -1,
+        "aria-pressed": String(selected), "data-trend-cell": index, "aria-label": label });
+      rect.append(svg("title", {}, label));
+      const choose = (next) => {
+        selectedTrendCell = { id: region.id, index: next };
+        renderCellTrends(regions);
+        [...$("cell-trend-maps").children].find((item) => item.dataset.region === region.id)
+          .querySelector(`[data-trend-cell="${next}"]`).focus({ preventScroll: true });
+      };
+      rect.addEventListener("click", () => choose(index));
+      rect.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") { event.preventDefault(); choose(index); return; }
+        const offset = gridOffsets[event.key];
+        if (!offset) return;
+        event.preventDefault();
+        const target = cells.findIndex((other) =>
+          other.longitude === cell.longitude + offset[0] && other.latitude === cell.latitude + offset[1]);
+        if (target >= 0) choose(target);
+      });
+      map.append(rect);
+    });
+    panel.append(map);
+    return panel;
+  }));
+}
+
+$("open-cell-trends").addEventListener("click", () => {
+  $("tab-region").click();
+  $("tab-cell-trends").click();
+  $("tab-cell-trends").focus({ preventScroll: true });
+});
+
+let terrainView;
+
+function renderTerrain() {
+  const regionSelect = $("terrain-region"), canvas = $("terrain-canvas"), status = $("terrain-status");
+  const regions = active().filter((region) => terrainWindow(region.id, region.region.candidate_bbox));
+  const region = regions.find(({ id }) => id === regionSelect.value) ?? regions[0];
+  regionSelect.replaceChildren(...regions.map((item) => {
+    const option = el("option", named(item));
+    option.value = item.id;
+    return option;
+  }));
+  regionSelect.value = region?.id ?? "";
+  regionSelect.disabled = !region;
+  terrainView ??= createTerrainView(canvas) ?? false;
+  canvas.hidden = !region || !terrainView;
+  const rainControl = $("terrain-rain");
+  const layer = $("terrain-layer");
+  layer.disabled = $("terrain-rotation").disabled = canvas.hidden;
+  rainControl.disabled = canvas.hidden;
+  $("terrain-rain-note").textContent = "";
+  if (canvas.hidden) {
+    terrainView?.stop?.();
+    $("terrain-heading").textContent = "Regional terrain";
+    status.textContent = terrainView ? "Select a region with recorded elevation data." : "This browser could not start the terrain view.";
+    return;
+  }
+  $("terrain-heading").textContent = `${named(region)} terrain`;
+  const relief = terrainWindow(region.id, region.region.candidate_bbox);
+  let slopeColor = null;
+  if (layer.value === "trend") {
+    const { catalog, bound } = cellTrendData();
+    const cells = catalog.get(region.id) ?? [];
+    slopeColor = (lon, lat) => {
+      const match = cells.find(({ bounds: [w, s, e, n] }) => lon >= w && lon <= e && lat >= s && lat <= n);
+      return cellTrendColor(match?.result?.slope, bound);
+    };
+    status.textContent = `NASA POWER grid slopes, 2001–2024 · ${cellTrendNumber(-bound)} to ${cellTrendNumber(bound)} °C per decade · Gray: unavailable`;
+  } else {
+    status.textContent = "Green and brown indicate lower and higher terrain. Light tones show the highest elevations.";
+  }
+  const rain = state.seasonalYears.get(state.year)?.find(({ id }) => id === region.id)?.profile.points
+    .find(({ month }) => month === state.month)?.precipitation;
+  const hasRain = Number.isFinite(rain);
+  rainControl.disabled = !hasRain;
+  const date = `${months[state.month]} ${state.year}`;
+  $("terrain-rain-note").textContent = hasRain
+    ? `${date} · ${number(rain)} mm/day regional mean · illustrative, region-wide precipitation`
+    : `${date} · regional precipitation unavailable`;
+  const intensity = rainControl.checked && hasRain ? rain / (weather.scale ??= weatherScale()).rain : 0;
+  canvas.setAttribute("aria-label", `Three-dimensional elevation for ${named(region)}, colored by ${layer.value === "trend" ? "temperature trend" : "elevation"}.`);
+  const rotation = $("terrain-rotation");
+  rotation.setAttribute("aria-valuetext", `${rotation.value} degrees`);
+  terrainView.draw(relief, Number(rotation.value), slopeColor, intensity,
+    !document.hidden && !reducedMotion.matches);
+}
+
+for (const id of ["terrain-region", "terrain-layer", "terrain-rain"]) $(id).addEventListener("change", renderTerrain);
+$("terrain-rotation").addEventListener("input", renderTerrain);
+document.addEventListener("visibilitychange", () => {
+  if (document.body.dataset.screen === "terrain") renderTerrain();
+});
+
 const traceLabels = { Temperature: "Temperature input", Fractions: "Surface fractions", Land: "Land weighting", LandIce: "Land + ice weighting", Sensitivity: "Comparison", History: "Monthly source check", AnnualWeighting: "Annual weighting" };
 Object.assign(traceLabels,{Precipitation:'Precipitation input',InputCheck:'Input alignment'});
 function renderTrace(regions) {
@@ -1176,6 +1373,7 @@ reducedMotion.addEventListener("change", () => {
     $("weather-particles").checked = false;
     if (document.body.dataset.screen === "weather-3d") renderWeatherScene();
   }
+  if (document.body.dataset.screen === "terrain") renderTerrain();
 });
 $("weather-month").addEventListener("input", (event) => selectMonth(Number(event.target.value)));
 $("weather-play").addEventListener("click", () => {

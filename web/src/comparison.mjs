@@ -255,6 +255,35 @@ export function fitAnnualTrend(rows, { startYear = 2001, endYear = 2024 } = {}) 
   return { slope: slopePerDecade, interval, years: n };
 }
 
+// Use only the cell series in the verified temperature snapshots. The regional
+// compatibility check also checks the grid, source and boundary across years.
+export function summarizeGridTemperatureTrends(snapshots, id) {
+  const { years } = recordedMonthlyHistory(snapshots, [id], "unmasked");
+  const period = TEMPERATURE_SEASONS.annual;
+  if (years.length !== period.years || years[0] !== period.start || years.at(-1) !== period.end) {
+    throw Error("Cell trends require the 2001–2024 record.");
+  }
+  const key = ({ longitude, latitude }) => `${longitude},${latitude}`;
+  const regions = snapshots.map(({ regions }) => regions.find((region) => region.id === id));
+  const grids = regions.map(({ spatial }) => new Map(spatial.cells.map((cell) => [key(cell), cell])));
+  const weights = years.map((year) => {
+    const days = Array.from({ length: 12 }, (_, month) => new Date(Date.UTC(year, month + 1, 0)).getUTCDate());
+    return { days, totalDays: days.reduce((total, count) => total + count, 0) };
+  });
+  return regions[0].spatial.cells.map((cell) => {
+    const rows = years.map((year, index) => {
+      const series = grids[index].get(key(cell))?.series;
+      if (series?.length !== 12 || series.some(({ date, value }, month) =>
+        date !== snapshots[index].dates[month] || !Number.isFinite(value))) return { year, value: null };
+      const { days, totalDays } = weights[index];
+      const weighted = series.reduce((total, { value }, month) => total + value * days[month], 0);
+      return { year, value: weighted / totalDays };
+    });
+    return { longitude: cell.longitude, latitude: cell.latitude, bounds: cell.intersection_bbox,
+      rows, result: fitAnnualTrend(rows) };
+  });
+}
+
 function seasonMonthTriplet(year, season) {
   if (season === "summer") {
     return [

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
-import { ANOMALY_REFERENCE_PERIOD, SEASONAL_TREND_PERIOD, TEMPERATURE_SEASONS, summarizePolicyDifferences, summarizeRegionDifferences, datasetDigest, createComparisonReview, verifyComparisonReview, recordedMonthlyHistory, validateAnnualPreview, fitAnnualTrend, summarizeSeasonalTemperatureTrends, summarizeTemperatureAnomalies, summarizeTemperatureTrends } from '../src/comparison.mjs';
+import { ANOMALY_REFERENCE_PERIOD, SEASONAL_TREND_PERIOD, TEMPERATURE_SEASONS, summarizePolicyDifferences, summarizeRegionDifferences, datasetDigest, createComparisonReview, verifyComparisonReview, recordedMonthlyHistory, validateAnnualPreview, fitAnnualTrend, summarizeGridTemperatureTrends, summarizeSeasonalTemperatureTrends, summarizeTemperatureAnomalies, summarizeTemperatureTrends } from '../src/comparison.mjs';
 
 const series = () => Array.from({ length: 12 }, (_, i) => ({ date: `2024-${String(i + 1).padStart(2, '0')}`, unmasked: 10, land: 10, land_and_ice: 10 }));
 
@@ -15,7 +15,7 @@ function annualFixture() {
       return {id:a.region.id,region:source.region,variable:source.variable,time:source.time,
         support:{cell_count:source.spatial_support.cell_count,window_area_m2:source.spatial_support.window_area_m2},
         spatial:{geometry:'reconstructed_midpoint_rectangles',longitude_step_deg:0.625,latitude_step_deg:0.5,area_radius_m:6371008.8,
-          cells:source.module_details.cells.map((c)=>({longitude:c.longitude,latitude:c.latitude,full_cell_bbox:[c.longitude-0.3125,c.latitude-0.25,c.longitude+0.3125,c.latitude+0.25],intersection_bbox:c.intersection_bbox,intersection_area_m2:c.area_m2,weights_m2:{unmasked:c.area_m2}}))},
+          cells:source.module_details.cells.map((c)=>({longitude:c.longitude,latitude:c.latitude,full_cell_bbox:[c.longitude-0.3125,c.latitude-0.25,c.longitude+0.3125,c.latitude+0.25],intersection_bbox:c.intersection_bbox,intersection_area_m2:c.area_m2,weights_m2:{unmasked:c.area_m2},series:c.series}))},
         series:source.series.map((row)=>({date:row.date,unmasked:row.value,land:row.value,land_and_ice:row.value})),
         provenance:{temperature:source.provenance,source_files_sha256:{temperature:structuredClone(a.provenance.annual_sources[index].files_sha256)}},
         workflow_trace:{nodes:[{id:'Temperature',operation:'Temperature',operation_version:'0.1.0',output_contract:{type:'fixture_verified_window',schema_version:source.schema_version,unit:'degC'}}]}};
@@ -27,6 +27,29 @@ function annualFixture() {
 }
 const annualSource=annualFixture();
 const annualCopy=()=>structuredClone(annualSource);
+
+test('grid trends use stable coordinates and complete day-weighted annual cell series', () => {
+  const { snapshots } = annualCopy();
+  const a = summarizeGridTemperatureTrends(snapshots, 'A');
+  const b = summarizeGridTemperatureTrends(snapshots, 'B');
+  assert.equal(a.length, 56);
+  assert.equal(b.length, 55);
+  assert.ok([...a, ...b].every(({ rows, result }) => rows.length === 24 && result.years === 24));
+  const leapYearGrid = snapshots[3].regions[0].spatial.cells;
+  const leapYearCell = leapYearGrid.find((cell) => cell.latitude === a[0].latitude && cell.longitude === a[0].longitude);
+  const days = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  const independentMean = leapYearCell.series.reduce((sum, row, i) => sum + days[i] * row.value, 0) / 366;
+  assert.equal(a[0].rows[3].year, 2004);
+  assert.equal(a[0].rows[3].value, independentMean);
+  leapYearGrid.reverse();
+  assert.deepEqual(summarizeGridTemperatureTrends(snapshots, 'A'), a);
+  leapYearCell.series[1].value = null;
+  const incomplete = summarizeGridTemperatureTrends(snapshots, 'A');
+  assert.equal(incomplete[0].rows[3].value, null);
+  assert.equal(incomplete[0].result, null);
+  assert.deepEqual(incomplete[1], a[1]);
+  assert.throws(() => summarizeGridTemperatureTrends(snapshots.slice(1), 'A'), /2001–2024 record/);
+});
 
 test('annual trends and paired interval match an independent matrix calculation on both recorded regions', () => {
   const { payload, digest, snapshots } = annualCopy();
