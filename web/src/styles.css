@@ -474,6 +474,7 @@ body[data-screen=trend] .controls > :is(.policy-control, .shared-month), body[da
   .trend-row { padding: 3px 7px; }
   .trend-row h3 { font-size: 13px; margin: 1px 0; }
   .trend-row .trend-values { font-size: 12px; column-gap: 8px; }
+  .trend-panel:has(#trend-seasonal-method:not([hidden])) .trend-years { display: none; }
   .trend-row .trend-years { display: none; }
   .trend-row p, .trend-row .detail-note { margin: 1px 0; }
   .trend-track { height: 9px; margin-block: 2px; }

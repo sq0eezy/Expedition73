@@ -479,6 +479,12 @@ function renderTrendTable(entries, unit, indicator, anomaly = false, seasonMeta 
 
 const trendQuestions = [...document.querySelectorAll("[data-trend-question]")];
 
+function setTrendDetailLabel(id, label) {
+  const details = $(id);
+  details.querySelector("summary").textContent = label;
+  details.querySelector(".detail-sheet-heading strong").textContent = label;
+}
+
 function renderTrend(regions) {
   const status = $("trend-status"), panel = $("trend-results");
   const question = trendQuestions.some((button) => button.getAttribute("aria-pressed") === "true");
@@ -487,8 +493,9 @@ function renderTrend(regions) {
   $("trend-season-picker").hidden = precipitation;
   const season = precipitation ? "annual" : $("trend-season").value;
   const seasonMeta = TEMPERATURE_SEASONS[season] ?? TEMPERATURE_SEASONS.annual;
-  $("trend-mode-picker").hidden = precipitation || season !== "annual";
-  const anomaly = !precipitation && season === "annual" && $("trend-mode").value === "anomalies";
+  const seasonal = season !== "annual";
+  $("trend-mode-picker").hidden = precipitation || seasonal;
+  const anomaly = !precipitation && !seasonal && $("trend-mode").value === "anomalies";
   const unit = precipitation ? "mm/day" : "°C";
   $("trend-period-label").textContent = `${seasonMeta.period} · CANDIDATE REGIONS`;
   $("trend-heading").textContent = precipitation
@@ -507,7 +514,12 @@ function renderTrend(regions) {
           : "NASA POWER · Annual mean 2 m air temperature";
   $("trend-coverage").hidden = !precipitation;
   $("trend-coverage-method").hidden = !precipitation;
-  $("trend-seasonal-method").hidden = precipitation || season === "annual";
+  $("trend-annual-method").hidden = seasonal;
+  $("trend-seasonal-method").hidden = !seasonal;
+  $("trend-paired-method").hidden = precipitation;
+  setTrendDetailLabel("trend-series", seasonal ? "View seasonal time series" : "View annual time series");
+  setTrendDetailLabel("trend-table-panel", anomaly ? "View annual anomalies"
+    : seasonal ? `View ${seasonMeta.shortLabel.toLowerCase()} values` : "View annual values");
   $("trend-series").hidden = true;
   panel.replaceChildren();
   $("trend-finding").textContent = question ? "This investigation needs verified records for both regions." : "";
@@ -550,7 +562,7 @@ function renderTrend(regions) {
     : anomaly
       ? `Relative to each region’s ${ANOMALY_REFERENCE_PERIOD.label} mean · Approximate 95% intervals · dashed line at zero`
       : season !== "annual"
-        ? `${seasonMeta.period} (${seasonMeta.years} years) · Approximate 95% intervals · Separate seasonal intervals do not test whether summer and winter slopes differ`
+        ? `${seasonMeta.period} (${seasonMeta.years} years) · Approximate 95% intervals for the selected season`
         : "Approximate 95% intervals · dashed line at zero";
   for (const { id, label, result } of rows) {
     const card = el("article", undefined, "trend-row"); card.dataset.trend = id;
